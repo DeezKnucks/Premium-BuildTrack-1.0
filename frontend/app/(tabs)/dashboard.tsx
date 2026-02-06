@@ -135,10 +135,7 @@ export default function DashboardScreen() {
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.userName}>{user?.full_name || 'User'}</Text>
           </View>
-          {/* Logo placeholder - replace with your logo */}
-          <View style={styles.logo}>
-            <MaterialIcons name=\"construction\" size={40} color=\"#FFF\" />
-          </View>
+          <Logo size={60} />
         </View>
       </LinearGradient>
 
