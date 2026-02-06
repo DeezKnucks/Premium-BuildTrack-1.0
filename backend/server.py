@@ -689,6 +689,55 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         upcoming_deadlines=upcoming[:10]
     )
 
+# ============ FEEDBACK ENDPOINTS ============
+
+@api_router.post("/feedback/contact")
+async def submit_contact_form(contact_data: dict):
+    """Submit contact form"""
+    feedback_dict = {
+        "id": str(uuid.uuid4()),
+        "type": "contact",
+        "name": contact_data.get("name"),
+        "email": contact_data.get("email"),
+        "phone": contact_data.get("phone"),
+        "message": contact_data.get("message"),
+        "inquiry_type": contact_data.get("type", "General Inquiry"),
+        "created_at": datetime.utcnow(),
+        "status": "new"
+    }
+    
+    await db.feedback.insert_one(feedback_dict)
+    
+    # TODO: Send email notification to founder@buildtrack.com
+    # You can integrate SendGrid or similar service here
+    
+    return {"message": "Contact form submitted successfully", "id": feedback_dict["id"]}
+
+@api_router.post("/feedback/feature")
+async def submit_feature_request(feature_data: dict):
+    """Submit feature request"""
+    feedback_dict = {
+        "id": str(uuid.uuid4()),
+        "type": "feature_request",
+        "feature_request": feature_data.get("feature_request"),
+        "created_at": datetime.utcnow(),
+        "status": "new",
+        "votes": 0
+    }
+    
+    await db.feedback.insert_one(feedback_dict)
+    
+    return {"message": "Feature request submitted successfully", "id": feedback_dict["id"]}
+
+@api_router.get("/feedback")
+async def get_all_feedback(current_user: dict = Depends(get_current_user)):
+    """Get all feedback (admin only)"""
+    if current_user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    feedback_items = await db.feedback.find({}).sort("created_at", -1).to_list(1000)
+    return [serialize_doc(f) for f in feedback_items]
+
 # ============ ROOT ENDPOINT ============
 
 @api_router.get("/")
