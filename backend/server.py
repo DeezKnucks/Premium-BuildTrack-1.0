@@ -1,15 +1,20 @@
-from fastapi import FastAPI, APIRouter
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from dotenv import load_dotenv
+from pathlib import Path
 import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List
+from datetime import datetime, timedelta
+from typing import List, Optional
 import uuid
-from datetime import datetime
+import aiohttp
+from bson import ObjectId
 
+# Import models and services
+from models import *
+from auth import *
+from ai_service import ai_service
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,42 +24,23 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
-app = FastAPI()
+# Collections
+users_collection = db.users
+projects_collection = db.projects
+tasks_collection = db.tasks
+media_collection = db.media
+budgets_collection = db.budgets
+vendors_collection = db.vendors
+alerts_collection = db.alerts
+chat_rooms_collection = db.chat_rooms
+messages_collection = db.messages
+subscriptions_collection = db.subscriptions
 
-# Create a router with the /api prefix
+# Create app
+app = FastAPI(title="BuildTrack API", version="1.0.0")
 api_router = APIRouter(prefix="/api")
 
-
-# Define Models
-class StatusCheck(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class StatusCheckCreate(BaseModel):
-    client_name: str
-
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
-
-# Include the router in the main app
-app.include_router(api_router)
-
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -63,12 +49,658 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Helper functions
+def serialize_doc(doc):
+    """Convert MongoDB document to JSON-serializable format"""
+    if doc is None:
+        return None
+    if isinstance(doc, list):
+        return [serialize_doc(item) for item in doc]
+    if isinstance(doc, dict):
+        doc = dict(doc)
+        if '_id' in doc:
+            doc['id'] = str(doc['_id'])
+            del doc['_id']
+        for key, value in doc.items():
+            if isinstance(value, ObjectId):
+                doc[key] = str(value)
+            elif isinstance(value, datetime):
+                doc[key] = value.isoformat()
+            elif isinstance(value, dict) or isinstance(value, list):
+                doc[key] = serialize_doc(value)
+        return doc
+    return doc
+
+# Weather Service
+async def get_weather_forecast(lat: float, lng: float) -> dict:
+    """Fetch weather forecast from OpenWeatherMap"""
+    api_key = os.getenv("OPENWEATHER_API_KEY")
+    if not api_key:
+        return {"error": "Weather API key not configured"}
+    
+    url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lng}&appid={api_key}&units=imperial"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        "location": data.get("city", {}).get("name", "Unknown"),
+                        "forecasts": [
+                            {
+                                "date": item["dt_txt"],
+                                "temp": item["main"]["temp"],
+                                "description": item["weather"][0]["description"],
+                                "rain_probability": item.get("pop", 0) * 100
+                            }
+                            for item in data.get("list", [])[:10]  # Next 10 periods
+                        ]
+                    }
+                else:
+                    return {"error": "Failed to fetch weather data"}
+    except Exception as e:
+        logger.error(f"Weather API error: {str(e)}")
+        return {"error": str(e)}
+
+# ============ AUTH ENDPOINTS ============
+
+@api_router.post("/auth/register", response_model=User)
+async def register(user_data: UserCreate):
+    """Register a new user"""
+    # Check if user exists
+    existing = await users_collection.find_one({"email": user_data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Hash password
+    hashed_password = hash_password(user_data.password)
+    
+    # Create user
+    user_dict = user_data.dict()
+    del user_dict['password']
+    user_dict['hashed_password'] = hashed_password
+    user_dict['id'] = str(uuid.uuid4())
+    user_dict['created_at'] = datetime.utcnow()
+    user_dict['is_active'] = True
+    
+    await users_collection.insert_one(user_dict)
+    
+    return User(**user_dict)
+
+@api_router.post("/auth/login")
+async def login(credentials: UserLogin):
+    """Login and get access token"""
+    user = await users_collection.find_one({"email": credentials.email})
+    
+    if not user or not verify_password(credentials.password, user['hashed_password']):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    if not user.get('is_active'):
+        raise HTTPException(status_code=403, detail="Account is inactive")
+    
+    # Create access token
+    token_data = {
+        "user_id": user['id'],
+        "email": user['email'],
+        "role": user['role']
+    }
+    token = create_access_token(token_data)
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": serialize_doc(user)
+    }
+
+@api_router.get("/auth/me", response_model=User)
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+    """Get current user information"""
+    user = await users_collection.find_one({"id": current_user['user_id']})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return User(**serialize_doc(user))
+
+# ============ PROJECT ENDPOINTS ============
+
+@api_router.post("/projects", response_model=Project)
+async def create_project(project: ProjectCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new project"""
+    project_dict = project.dict()
+    project_dict['id'] = str(uuid.uuid4())
+    project_dict['owner_id'] = current_user['user_id']
+    project_dict['team_members'] = [current_user['user_id']]
+    project_dict['created_at'] = datetime.utcnow()
+    project_dict['updated_at'] = datetime.utcnow()
+    project_dict['actual_cost'] = 0.0
+    project_dict['completion_percentage'] = 0.0
+    
+    await projects_collection.insert_one(project_dict)
+    return Project(**project_dict)
+
+@api_router.get("/projects", response_model=List[Project])
+async def get_projects(current_user: dict = Depends(get_current_user)):
+    """Get all projects for current user"""
+    # Users can see projects they own or are team members of
+    projects = await projects_collection.find({
+        "$or": [
+            {"owner_id": current_user['user_id']},
+            {"team_members": current_user['user_id']}
+        ]
+    }).to_list(1000)
+    
+    return [Project(**serialize_doc(p)) for p in projects]
+
+@api_router.get("/projects/{project_id}", response_model=Project)
+async def get_project(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a specific project"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Check access
+    if current_user['user_id'] not in [project['owner_id']] + project.get('team_members', []):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return Project(**serialize_doc(project))
+
+@api_router.put("/projects/{project_id}", response_model=Project)
+async def update_project(project_id: str, updates: ProjectUpdate, current_user: dict = Depends(get_current_user)):
+    """Update a project"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Check permissions (owner or admin)
+    if project['owner_id'] != current_user['user_id'] and current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    update_dict = {k: v for k, v in updates.dict(exclude_unset=True).items() if v is not None}
+    update_dict['updated_at'] = datetime.utcnow()
+    
+    await projects_collection.update_one({"id": project_id}, {"$set": update_dict})
+    
+    updated_project = await projects_collection.find_one({"id": project_id})
+    return Project(**serialize_doc(updated_project))
+
+@api_router.delete("/projects/{project_id}")
+async def delete_project(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a project (admin only)"""
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await projects_collection.delete_one({"id": project_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Also delete related data
+    await tasks_collection.delete_many({"project_id": project_id})
+    await media_collection.delete_many({"project_id": project_id})
+    await budgets_collection.delete_many({"project_id": project_id})
+    
+    return {"message": "Project deleted successfully"}
+
+# ============ TASK ENDPOINTS ============
+
+@api_router.post("/tasks", response_model=Task)
+async def create_task(task: TaskCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new task"""
+    task_dict = task.dict()
+    task_dict['id'] = str(uuid.uuid4())
+    task_dict['created_by'] = current_user['user_id']
+    task_dict['created_at'] = datetime.utcnow()
+    task_dict['updated_at'] = datetime.utcnow()
+    task_dict['checklist'] = []
+    task_dict['dependencies'] = []
+    
+    await tasks_collection.insert_one(task_dict)
+    return Task(**task_dict)
+
+@api_router.get("/tasks", response_model=List[Task])
+async def get_tasks(project_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get tasks (optionally filtered by project)"""
+    query = {}
+    if project_id:
+        query['project_id'] = project_id
+    
+    tasks = await tasks_collection.find(query).to_list(1000)
+    return [Task(**serialize_doc(t)) for t in tasks]
+
+@api_router.get("/tasks/{task_id}", response_model=Task)
+async def get_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a specific task"""
+    task = await tasks_collection.find_one({"id": task_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return Task(**serialize_doc(task))
+
+@api_router.put("/tasks/{task_id}", response_model=Task)
+async def update_task(task_id: str, updates: TaskUpdate, current_user: dict = Depends(get_current_user)):
+    """Update a task"""
+    update_dict = {k: v for k, v in updates.dict(exclude_unset=True).items() if v is not None}
+    update_dict['updated_at'] = datetime.utcnow()
+    
+    result = await tasks_collection.update_one({"id": task_id}, {"$set": update_dict})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    updated_task = await tasks_collection.find_one({"id": task_id})
+    return Task(**serialize_doc(updated_task))
+
+@api_router.delete("/tasks/{task_id}")
+async def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a task"""
+    result = await tasks_collection.delete_one({"id": task_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"message": "Task deleted successfully"}
+
+# ============ MEDIA ENDPOINTS ============
+
+@api_router.post("/media", response_model=Media)
+async def upload_media(media: MediaCreate, current_user: dict = Depends(get_current_user)):
+    """Upload media (photo/video/document)"""
+    media_dict = media.dict()
+    media_dict['id'] = str(uuid.uuid4())
+    media_dict['uploaded_by'] = current_user['user_id']
+    media_dict['uploaded_at'] = datetime.utcnow()
+    
+    await media_collection.insert_one(media_dict)
+    return Media(**media_dict)
+
+@api_router.get("/media", response_model=List[Media])
+async def get_media(project_id: Optional[str] = None, task_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get media (filtered by project or task)"""
+    query = {}
+    if project_id:
+        query['project_id'] = project_id
+    if task_id:
+        query['task_id'] = task_id
+    
+    media_items = await media_collection.find(query).sort("uploaded_at", -1).to_list(1000)
+    return [Media(**serialize_doc(m)) for m in media_items]
+
+@api_router.get("/media/{media_id}", response_model=Media)
+async def get_media_item(media_id: str, current_user: dict = Depends(get_current_user)):
+    """Get specific media item"""
+    media = await media_collection.find_one({"id": media_id})
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
+    return Media(**serialize_doc(media))
+
+@api_router.delete("/media/{media_id}")
+async def delete_media(media_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete media"""
+    media = await media_collection.find_one({"id": media_id})
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
+    
+    # Check if user owns it or is admin
+    if media['uploaded_by'] != current_user['user_id'] and current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    await media_collection.delete_one({"id": media_id})
+    return {"message": "Media deleted successfully"}
+
+# ============ BUDGET ENDPOINTS ============
+
+@api_router.post("/budgets", response_model=Budget)
+async def create_budget(budget: BudgetCreate, current_user: dict = Depends(get_current_user)):
+    """Create budget for a project"""
+    budget_dict = budget.dict()
+    budget_dict['id'] = str(uuid.uuid4())
+    budget_dict['created_at'] = datetime.utcnow()
+    budget_dict['updated_at'] = datetime.utcnow()
+    
+    await budgets_collection.insert_one(budget_dict)
+    return Budget(**budget_dict)
+
+@api_router.get("/budgets/{project_id}", response_model=Budget)
+async def get_budget(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Get budget for a project"""
+    budget = await budgets_collection.find_one({"project_id": project_id})
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+    return Budget(**serialize_doc(budget))
+
+@api_router.put("/budgets/{project_id}", response_model=Budget)
+async def update_budget(project_id: str, budget: BudgetBase, current_user: dict = Depends(get_current_user)):
+    """Update budget"""
+    budget_dict = budget.dict()
+    budget_dict['updated_at'] = datetime.utcnow()
+    
+    result = await budgets_collection.update_one(
+        {"project_id": project_id},
+        {"$set": budget_dict},
+        upsert=True
+    )
+    
+    updated_budget = await budgets_collection.find_one({"project_id": project_id})
+    return Budget(**serialize_doc(updated_budget))
+
+# ============ VENDOR ENDPOINTS ============
+
+@api_router.post("/vendors", response_model=Vendor)
+async def create_vendor(vendor: VendorCreate, current_user: dict = Depends(get_current_user)):
+    """Create a vendor profile"""
+    vendor_dict = vendor.dict()
+    vendor_dict['id'] = str(uuid.uuid4())
+    vendor_dict['created_at'] = datetime.utcnow()
+    
+    await vendors_collection.insert_one(vendor_dict)
+    return Vendor(**vendor_dict)
+
+@api_router.get("/vendors", response_model=List[Vendor])
+async def get_vendors(service: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get all vendors, optionally filtered by service"""
+    query = {}
+    if service:
+        query['services'] = service
+    
+    vendors = await vendors_collection.find(query).sort("rating", -1).to_list(1000)
+    return [Vendor(**serialize_doc(v)) for v in vendors]
+
+@api_router.get("/vendors/{vendor_id}", response_model=Vendor)
+async def get_vendor(vendor_id: str, current_user: dict = Depends(get_current_user)):
+    """Get specific vendor"""
+    vendor = await vendors_collection.find_one({"id": vendor_id})
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return Vendor(**serialize_doc(vendor))
+
+# ============ ALERT ENDPOINTS ============
+
+@api_router.post("/alerts", response_model=Alert)
+async def create_alert(alert: AlertCreate, current_user: dict = Depends(get_current_user)):
+    """Create an alert"""
+    alert_dict = alert.dict()
+    alert_dict['id'] = str(uuid.uuid4())
+    alert_dict['created_at'] = datetime.utcnow()
+    alert_dict['is_read'] = False
+    alert_dict['is_resolved'] = False
+    
+    await alerts_collection.insert_one(alert_dict)
+    return Alert(**alert_dict)
+
+@api_router.get("/alerts", response_model=List[Alert])
+async def get_alerts(project_id: Optional[str] = None, unread_only: bool = False, current_user: dict = Depends(get_current_user)):
+    """Get alerts"""
+    query = {}
+    if project_id:
+        query['project_id'] = project_id
+    if unread_only:
+        query['is_read'] = False
+    
+    alerts = await alerts_collection.find(query).sort("created_at", -1).to_list(1000)
+    return [Alert(**serialize_doc(a)) for a in alerts]
+
+@api_router.put("/alerts/{alert_id}/read")
+async def mark_alert_read(alert_id: str, current_user: dict = Depends(get_current_user)):
+    """Mark alert as read"""
+    result = await alerts_collection.update_one(
+        {"id": alert_id},
+        {"$set": {"is_read": True}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"message": "Alert marked as read"}
+
+# ============ CHAT ENDPOINTS ============
+
+@api_router.post("/chat/rooms")
+async def create_chat_room(room_data: dict, current_user: dict = Depends(get_current_user)):
+    """Create a chat room"""
+    room = {
+        "id": str(uuid.uuid4()),
+        "project_id": room_data.get("project_id"),
+        "name": room_data.get("name"),
+        "members": room_data.get("members", [current_user['user_id']]),
+        "created_at": datetime.utcnow()
+    }
+    
+    await chat_rooms_collection.insert_one(room)
+    return serialize_doc(room)
+
+@api_router.get("/chat/rooms")
+async def get_chat_rooms(project_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get chat rooms for user"""
+    query = {"members": current_user['user_id']}
+    if project_id:
+        query['project_id'] = project_id
+    
+    rooms = await chat_rooms_collection.find(query).to_list(1000)
+    return [serialize_doc(r) for r in rooms]
+
+@api_router.post("/chat/messages", response_model=Message)
+async def send_message(message: MessageCreate, current_user: dict = Depends(get_current_user)):
+    """Send a chat message"""
+    user = await users_collection.find_one({"id": current_user['user_id']})
+    
+    message_dict = message.dict()
+    message_dict['id'] = str(uuid.uuid4())
+    message_dict['sender_id'] = current_user['user_id']
+    message_dict['sender_name'] = user.get('full_name', 'Unknown')
+    message_dict['sent_at'] = datetime.utcnow()
+    
+    await messages_collection.insert_one(message_dict)
+    return Message(**message_dict)
+
+@api_router.get("/chat/messages/{room_id}", response_model=List[Message])
+async def get_messages(room_id: str, limit: int = 100, current_user: dict = Depends(get_current_user)):
+    """Get messages for a room"""
+    messages = await messages_collection.find({"room_id": room_id}).sort("sent_at", -1).limit(limit).to_list(limit)
+    return [Message(**serialize_doc(m)) for m in reversed(messages)]
+
+# ============ AI ENDPOINTS ============
+
+@api_router.post("/ai/risk-prediction")
+async def predict_risks(request: AIRiskRequest, current_user: dict = Depends(get_current_user)):
+    """AI Risk Engine: Predict project risks"""
+    project = await projects_collection.find_one({"id": request.project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Get weather data if location available
+    weather_data = {}
+    if project.get('location'):
+        loc = project['location']
+        weather_data = await get_weather_forecast(loc.get('lat', 0), loc.get('lng', 0))
+    
+    # Call AI service
+    result = await ai_service.predict_risks(serialize_doc(project), weather_data)
+    
+    # Create alert if high risk
+    if result.get('risk_score', 0) > 70:
+        await create_alert(AlertCreate(
+            project_id=request.project_id,
+            alert_type=AlertType.RISK_PREDICTION,
+            severity="high",
+            title="High Risk Detected",
+            message=f"AI detected high risk score: {result['risk_score']}/100",
+            data=result
+        ), current_user)
+    
+    return result
+
+@api_router.post("/ai/budget-analysis")
+async def analyze_budget(request: AIBudgetRequest, current_user: dict = Depends(get_current_user)):
+    """AI Budget Guardian: Analyze budget"""
+    project = await projects_collection.find_one({"id": request.project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    budget = await budgets_collection.find_one({"project_id": request.project_id})
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget not found")
+    
+    result = await ai_service.analyze_budget(serialize_doc(budget), serialize_doc(project))
+    
+    # Create alerts for high severity issues
+    for alert_data in result.get('alerts', []):
+        if alert_data.get('severity') == 'high':
+            await create_alert(AlertCreate(
+                project_id=request.project_id,
+                alert_type=AlertType.BUDGET_VARIANCE,
+                severity="high",
+                title=f"Budget Alert: {alert_data.get('category')}",
+                message=alert_data.get('message'),
+                data=alert_data
+            ), current_user)
+    
+    return result
+
+@api_router.post("/ai/schedule-optimization")
+async def optimize_schedule(request: AIScheduleRequest, current_user: dict = Depends(get_current_user)):
+    """AI Schedule Optimizer"""
+    project = await projects_collection.find_one({"id": request.project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    tasks = await tasks_collection.find({"project_id": request.project_id}).to_list(1000)
+    
+    weather_data = {}
+    if project.get('location'):
+        loc = project['location']
+        weather_data = await get_weather_forecast(loc.get('lat', 0), loc.get('lng', 0))
+    
+    result = await ai_service.optimize_schedule(
+        [serialize_doc(t) for t in tasks],
+        weather_data
+    )
+    
+    return result
+
+@api_router.post("/ai/transcribe")
+async def transcribe_voice(request: VoiceTranscriptionRequest, current_user: dict = Depends(get_current_user)):
+    """Transcribe voice notes"""
+    result = await ai_service.transcribe_voice(request.audio_data)
+    return result
+
+@api_router.post("/ai/compliance-check")
+async def check_compliance(project_id: str, current_user: dict = Depends(get_current_user)):
+    """AI Compliance Bot"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Get vendor compliance docs
+    vendors = await vendors_collection.find({}).to_list(1000)
+    all_docs = []
+    for v in vendors:
+        all_docs.extend(v.get('compliance_docs', []))
+    
+    result = await ai_service.check_compliance(serialize_doc(project), all_docs)
+    
+    # Create alert if not compliant
+    if not result.get('compliant', True):
+        await create_alert(AlertCreate(
+            project_id=project_id,
+            alert_type=AlertType.COMPLIANCE_ISSUE,
+            severity="high",
+            title="Compliance Issues Detected",
+            message=f"Missing documents: {', '.join(result.get('missing_documents', []))}",
+            data=result
+        ), current_user)
+    
+    return result
+
+@api_router.post("/ai/vendor-scout")
+async def scout_vendors(requirements: dict, current_user: dict = Depends(get_current_user)):
+    """AI Vendor Scout"""
+    result = await ai_service.scout_vendors(requirements)
+    return {"recommended_vendors": result}
+
+# ============ WEATHER ENDPOINT ============
+
+@api_router.get("/weather/{project_id}")
+async def get_project_weather(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Get weather forecast for project location"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if not project.get('location'):
+        raise HTTPException(status_code=400, detail="Project has no location set")
+    
+    loc = project['location']
+    weather_data = await get_weather_forecast(loc.get('lat'), loc.get('lng'))
+    
+    return weather_data
+
+# ============ DASHBOARD ENDPOINT ============
+
+@api_router.get("/dashboard", response_model=DashboardStats)
+async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
+    """Get dashboard statistics"""
+    # Get user's projects
+    projects = await projects_collection.find({
+        "$or": [
+            {"owner_id": current_user['user_id']},
+            {"team_members": current_user['user_id']}
+        ]
+    }).to_list(1000)
+    
+    project_ids = [p['id'] for p in projects]
+    
+    # Get tasks for these projects
+    all_tasks = await tasks_collection.find({"project_id": {"$in": project_ids}}).to_list(10000)
+    
+    # Get recent alerts
+    recent_alerts = await alerts_collection.find({
+        "project_id": {"$in": project_ids}
+    }).sort("created_at", -1).limit(10).to_list(10)
+    
+    # Calculate stats
+    active_projects = [p for p in projects if p.get('status') == 'active']
+    completed_tasks = [t for t in all_tasks if t.get('status') == 'completed']
+    
+    # Budget variance
+    total_budget = sum(p.get('budget', 0) for p in projects)
+    total_actual = sum(p.get('actual_cost', 0) for p in projects)
+    budget_variance = ((total_actual / total_budget) - 1) * 100 if total_budget > 0 else 0
+    
+    # Upcoming deadlines
+    upcoming = []
+    for task in all_tasks:
+        if task.get('end_date') and task.get('status') != 'completed':
+            end_date = task['end_date'] if isinstance(task['end_date'], datetime) else datetime.fromisoformat(task['end_date'])
+            if end_date > datetime.utcnow():
+                upcoming.append({
+                    "task_id": task['id'],
+                    "title": task['title'],
+                    "project_id": task['project_id'],
+                    "due_date": end_date.isoformat(),
+                    "days_until_due": (end_date - datetime.utcnow()).days
+                })
+    
+    upcoming.sort(key=lambda x: x['days_until_due'])
+    
+    return DashboardStats(
+        total_projects=len(projects),
+        active_projects=len(active_projects),
+        total_tasks=len(all_tasks),
+        completed_tasks=len(completed_tasks),
+        budget_variance=budget_variance,
+        recent_alerts=[Alert(**serialize_doc(a)) for a in recent_alerts],
+        upcoming_deadlines=upcoming[:10]
+    )
+
+# ============ ROOT ENDPOINT ============
+
+@api_router.get("/")
+async def root():
+    return {
+        "app": "BuildTrack API",
+        "version": "1.0.0",
+        "status": "operational"
+    }
+
+# Include router
+app.include_router(api_router)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
