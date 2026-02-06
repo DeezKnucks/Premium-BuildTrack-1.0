@@ -22,6 +22,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { AnimatedTouchable } from '../../components/AnimatedTouchable';
 import { GlassCard } from '../../components/GlassCard';
+import { Logo } from '../../components/Logo';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
 import api from '../../services/api';
 import { format } from 'date-fns';
