@@ -138,7 +138,7 @@ export default function DashboardScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Overview</Text>
           
           <View style={styles.metricsGrid}>
-            {/* Active Projects Card with Pie Chart */}
+            {/* Active Projects Card */}
             <GlassCard style={styles.metricCard} gradient>
               <LinearGradient
                 colors={[Colors.secondaryDark, Colors.secondary]}
@@ -149,18 +149,7 @@ export default function DashboardScreen() {
                 <Text style={styles.metricValue}>{stats?.active_projects || 0}</Text>
                 <Text style={styles.metricLabel}>Active Projects</Text>
                 <View style={styles.miniChart}>
-                  <VictoryPie
-                    data={[
-                      { x: 'Active', y: stats?.active_projects || 1 },
-                      { x: 'Total', y: (stats?.total_projects || 1) - (stats?.active_projects || 0) },
-                    ]}
-                    colorScale={[Colors.primary, Colors.dark.border]}
-                    width={100}
-                    height={100}
-                    innerRadius={35}
-                    padding={0}
-                    style={{ labels: { fill: 'transparent' } }}
-                  />
+                  <MaterialIcons name="folder-open" size={60} color="rgba(255,255,255,0.2)" />
                 </View>
               </LinearGradient>
             </GlassCard>
