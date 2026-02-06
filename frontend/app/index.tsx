@@ -7,50 +7,53 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function Index() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
-  const [navigationAttempted, setNavigationAttempted] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
 
   useEffect(() => {
-    checkOnboardingStatus();
-  }, []);
+    if (!isLoading) {
+      checkAndNavigate();
+    }
+  }, [isLoading, isAuthenticated]);
 
-  const checkOnboardingStatus = async () => {
+  const checkAndNavigate = async () => {
     try {
+      console.log('Index: Checking navigation...', { isAuthenticated, isLoading });
+      
+      // If user is already authenticated, go straight to dashboard
+      if (isAuthenticated) {
+        console.log('Index: User authenticated, going to dashboard');
+        router.replace('/(tabs)/dashboard');
+        return;
+      }
+
+      // Check if user has seen onboarding
       const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+      console.log('Index: hasSeenOnboarding =', hasSeenOnboarding);
       
-      console.log('Index: hasSeenOnboarding=', hasSeenOnboarding, 'isLoading=', isLoading, 'isAuthenticated=', isAuthenticated);
-      
-      if (!isLoading) {
-        if (!hasSeenOnboarding) {
-          // First time user - show onboarding
-          console.log('Index: Navigating to onboarding');
-          router.replace('/onboarding');
-        } else if (isAuthenticated) {
-          console.log('Index: Navigating to dashboard');
-          router.replace('/(tabs)/dashboard');
-        } else {
-          console.log('Index: Navigating to login');
-          router.replace('/(auth)/login');
-        }
-        setNavigationAttempted(true);
+      if (!hasSeenOnboarding) {
+        // First time user - show onboarding
+        console.log('Index: First time user, showing onboarding');
+        router.replace('/onboarding');
+      } else {
+        // Returning user - show login
+        console.log('Index: Returning user, showing login');
+        router.replace('/(auth)/login');
       }
     } catch (error) {
-      console.error('Failed to check onboarding status:', error);
+      console.error('Navigation error:', error);
+      // Fallback to login on error
+      router.replace('/(auth)/login');
     } finally {
       setCheckingOnboarding(false);
     }
   };
 
-  if (isLoading || checkingOnboarding || !navigationAttempted) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#FF6B35" />
-        <Text style={styles.text}>Loading BuildTrack...</Text>
-      </View>
-    );
-  }
-
-  return null;
+  return (
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color="#FF6B35" />
+      <Text style={styles.text}>Loading BuildTrack...</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
