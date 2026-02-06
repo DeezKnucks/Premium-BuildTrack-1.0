@@ -101,7 +101,7 @@ export const PremiumInput: React.FC<PremiumInputProps> = ({
             {
               backgroundColor: underlineColor,
             },
-          ]
+          ]}
         />
         {isFocused && (
           <Animated.View
