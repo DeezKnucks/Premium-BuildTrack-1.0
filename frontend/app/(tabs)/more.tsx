@@ -59,8 +59,7 @@ export default function MoreScreen() {
           <MenuItem 
             icon="photo-library" 
             title="Media Gallery" 
-            onPress={() => {}} 
-            badge="Coming Soon"
+            onPress={() => router.push('/media-gallery')} 
           />
           <MenuItem 
             icon="chat" 
