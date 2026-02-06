@@ -47,6 +47,8 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await register(email.trim(), password, fullName, role);
+      // Mark onboarding as seen
+      await AsyncStorage.setItem('hasSeenOnboarding', 'true');
       router.replace('/(tabs)/dashboard');
     } catch (error: any) {
       Alert.alert('Registration Failed', error.message || 'Unable to create account');
