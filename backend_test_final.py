@@ -8,7 +8,7 @@ import aiohttp
 import json
 from datetime import datetime, timedelta
 
-BACKEND_URL = "https://fieldmaster-app-3.preview.emergentagent.com/api"
+BACKEND_URL = "https://buildwiz-4.preview.emergentagent.com/api"
 
 class BuildTrackTester:
     def __init__(self):
