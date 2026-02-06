@@ -4,6 +4,12 @@ import os
 from datetime import datetime
 import json
 import logging
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load environment variables
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +18,8 @@ class AIService:
         self.api_key = os.getenv("EMERGENT_LLM_KEY")
         if not self.api_key:
             logger.warning("EMERGENT_LLM_KEY not found in environment")
+        else:
+            logger.info("EMERGENT_LLM_KEY loaded successfully")
     
     async def predict_risks(self, project_data: Dict[str, Any], weather_data: Dict[str, Any]) -> Dict[str, Any]:
         """AI Risk Engine: Predict delays and issues"""
