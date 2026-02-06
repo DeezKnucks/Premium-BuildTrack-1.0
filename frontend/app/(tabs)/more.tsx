@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,6 +14,10 @@ export default function MoreScreen() {
     router.replace('/(auth)/login');
   };
 
+  const openURL = (url: string) => {
+    Linking.openURL(url);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -26,36 +30,105 @@ export default function MoreScreen() {
           </View>
         </View>
 
+        {/* Account Section */}
         <View style={styles.section}>
-          <MenuItem icon="settings" title="Settings" onPress={() => {}} />
-          <MenuItem icon="notifications" title="Notifications" onPress={() => {}} />
-          <MenuItem icon="help" title="Help & Support" onPress={() => {}} />
-          <MenuItem icon="info" title="About" onPress={() => {}} />
+          <Text style={styles.sectionTitle}>Account</Text>
+          <MenuItem 
+            icon="person" 
+            title="Edit Profile" 
+            onPress={() => {}} 
+            badge="Coming Soon"
+          />
+          <MenuItem 
+            icon="notifications" 
+            title="Notifications" 
+            onPress={() => {}} 
+            badge="Coming Soon"
+          />
+          <MenuItem 
+            icon="lock" 
+            title="Privacy & Security" 
+            onPress={() => {}} 
+            badge="Coming Soon"
+          />
+        </View>
+
+        {/* App Features */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Features</Text>
+          <MenuItem 
+            icon="photo-library" 
+            title="Media Gallery" 
+            onPress={() => {}} 
+            badge="Coming Soon"
+          />
+          <MenuItem 
+            icon="chat" 
+            title="Team Chat" 
+            onPress={() => {}} 
+            badge="Coming Soon"
+          />
+          <MenuItem 
+            icon="store" 
+            title="Vendor Marketplace" 
+            onPress={() => {}} 
+            badge="Coming Soon"
+          />
+          <MenuItem 
+            icon="assessment" 
+            title="Reports & Analytics" 
+            onPress={() => {}} 
+            badge="Coming Soon"
+          />
+        </View>
+
+        {/* Support Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support</Text>
+          <MenuItem icon="help" title="Help Center" onPress={() => {}} />
+          <MenuItem icon="feedback" title="Send Feedback" onPress={() => {}} />
+          <MenuItem icon="info" title="About BuildTrack" onPress={() => {}} />
+        </View>
+
+        {/* App Info */}
+        <View style={styles.appInfo}>
+          <Text style={styles.appInfoText}>BuildTrack v1.0.0</Text>
+          <Text style={styles.appInfoText}>© 2025 All Rights Reserved</Text>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <MaterialIcons name="logout" size={24} color="#F44336" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MenuItem({
-  icon,
-  title,
-  onPress,
-}: {
+interface MenuItemProps {
   icon: any;
   title: string;
   onPress: () => void;
-}) {
+  badge?: string;
+}
+
+function MenuItem({ icon, title, onPress, badge }: MenuItemProps) {
   return (
     <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-      <MaterialIcons name={icon} size={24} color="#FFF" />
-      <Text style={styles.menuText}>{title}</Text>
-      <MaterialIcons name="chevron-right" size={24} color="#666" />
+      <View style={styles.menuItemLeft}>
+        <MaterialIcons name={icon} size={24} color="#FFF" />
+        <Text style={styles.menuText}>{title}</Text>
+      </View>
+      <View style={styles.menuItemRight}>
+        {badge && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        )}
+        <MaterialIcons name="chevron-right" size={24} color="#666" />
+      </View>
     </TouchableOpacity>
   );
 }
@@ -99,9 +172,18 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 20,
   },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#999',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#1A1A2E',
     padding: 16,
     borderRadius: 12,
@@ -109,11 +191,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2A2A3E',
   },
-  menuText: {
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
+  },
+  menuText: {
     fontSize: 16,
     color: '#FFF',
     marginLeft: 16,
+  },
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badge: {
+    backgroundColor: '#FF9800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  badgeText: {
+    fontSize: 10,
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  appInfo: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  appInfoText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -121,7 +232,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#1A1A2E',
     marginHorizontal: 20,
-    marginTop: 32,
+    marginTop: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
