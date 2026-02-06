@@ -1,31 +1,19 @@
 import React from 'react';
 import { View, StyleSheet, Image } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 
 interface LogoProps {
   size?: number;
-  color?: string;
+  style?: any;
 }
 
-export const Logo: React.FC<LogoProps> = ({ size = 40, color = '#FFF' }) => {
-  // TO REPLACE WITH YOUR LOGO:
-  // 1. Add your logo image to /app/frontend/assets/images/logo.png
-  // 2. Uncomment the Image component below
-  // 3. Comment out the MaterialIcons fallback
-
+export const Logo: React.FC<LogoProps> = ({ size = 40, style }) => {
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
-      {/* REPLACE THIS ICON WITH YOUR LOGO */}
-      {/* Uncomment when you add your logo:
+    <View style={[styles.container, { width: size, height: size }, style]}>
       <Image
         source={require('../assets/images/logo.png')}
         style={styles.image}
         resizeMode="contain"
       />
-      */}
-      
-      {/* Temporary icon - remove when you add your logo */}
-      <MaterialIcons name="construction" size={size} color={color} />
     </View>
   );
 };
