@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Colors } from '../../constants/theme';
 
 export default function TabsLayout() {
   return (
@@ -7,18 +8,19 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1A1A2E',
-          borderTopColor: '#2A2A3E',
+          backgroundColor: Colors.dark.card,
+          borderTopColor: Colors.dark.border,
           borderTopWidth: 1,
           height: 80,
           paddingBottom: 8,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: '#FF6B35',
-        tabBarInactiveTintColor: '#666',
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.dark.textSecondary,
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '600',
+          fontWeight: '700',
+          letterSpacing: 0.5,
         },
       }}
     >
