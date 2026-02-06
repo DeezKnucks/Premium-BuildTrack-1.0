@@ -2,20 +2,21 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Logo } from '../../components/Logo';
+import { PremiumInput } from '../../components/PremiumInput';
+import { PremiumButton } from '../../components/PremiumButton';
+import { SuccessToast } from '../../components/SuccessToast';
+import { Colors, Typography, Spacing, BorderRadius } from '../../constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -23,96 +24,120 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [errors, setErrors] = useState({ email: '', password: '' });
+
+  const validate = () => {
+    let valid = true;
+    const newErrors = { email: '', password: '' };
+
+    if (!email) {
+      newErrors.email = 'Email is required';
+      valid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Email is invalid';
+      valid = false;
+    }
+
+    if (!password) {
+      newErrors.password = 'Password is required';
+      valid = false;
+    }
+
+    setErrors(newErrors);
+    return valid;
+  };
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+    if (!validate()) return;
 
     setLoading(true);
     try {
       await login(email.trim(), password);
-      // Mark onboarding as seen
       await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-      router.replace('/(tabs)/dashboard');
+      setShowSuccess(true);
+      setTimeout(() => {
+        router.replace('/(tabs)/dashboard');
+      }, 1000);
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message || 'Invalid credentials');
+      setErrors({ ...errors, password: error.message || 'Invalid credentials' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <SuccessToast
+        message="Login successful! Welcome back 🎉"
+        visible={showSuccess}
+        onHide={() => setShowSuccess(false)}
+        withConfetti
+      />
+      
+      <LinearGradient
+        colors={[Colors.secondary, Colors.secondaryDark]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.header}>
-            <MaterialIcons name="construction" size={64} color="#FF6B35" />
+            <Logo size={100} />
             <Text style={styles.title}>BuildTrack</Text>
             <Text style={styles.subtitle}>Construction Management Pro</Text>
           </View>
 
           <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <MaterialIcons name="email" size={24} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor="#666"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
-            </View>
+            <PremiumInput
+              label="EMAIL"
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                setErrors({ ...errors, email: '' });
+              }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              error={errors.email}
+            />
 
-            <View style={styles.inputContainer}>
-              <MaterialIcons name="lock" size={24} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#666"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeIcon}
-              >
-                <MaterialIcons
-                  name={showPassword ? 'visibility' : 'visibility-off'}
-                  size={24}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
+            <PremiumInput
+              label="PASSWORD"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                setErrors({ ...errors, password: '' });
+              }}
+              secureTextEntry
+              autoCapitalize="none"
+              error={errors.password}
+            />
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+            <PremiumButton
+              title="Sign In"
               onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
-              )}
-            </TouchableOpacity>
+              loading={loading}
+              icon="login"
+              variant="primary"
+            />
 
-            <TouchableOpacity
-              style={styles.linkButton}
+            <PremiumButton
+              title="Create Account"
               onPress={() => router.push('/(auth)/register')}
-            >
-              <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
-            </TouchableOpacity>
+              variant="secondary"
+              icon="person-add"
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -123,7 +148,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F23',
   },
   keyboardView: {
     flex: 1,
@@ -131,75 +155,25 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: Spacing.xl,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: Spacing['3xl'],
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: Typography['4xl'],
+    fontWeight: Typography.black,
     color: '#FFF',
-    marginTop: 16,
+    marginTop: Spacing.lg,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#999',
-    marginTop: 8,
+    fontSize: Typography.lg,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: Spacing.sm,
   },
   form: {
     width: '100%',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1A2E',
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#2A2A3E',
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    height: 56,
-    color: '#FFF',
-    fontSize: 16,
-  },
-  eyeIcon: {
-    padding: 4,
-  },
-  button: {
-    backgroundColor: '#FF6B35',
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  linkButton: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: '#FF6B35',
-    fontSize: 16,
+    gap: Spacing.base,
   },
 });
