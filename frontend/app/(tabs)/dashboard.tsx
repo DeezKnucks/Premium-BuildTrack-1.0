@@ -16,8 +16,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import ConfettiCannon from 'react-native-confetti-cannon';
-import { VictoryPie, VictoryChart, VictoryLine, VictoryTheme } from 'victory-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { AnimatedTouchable } from '../../components/AnimatedTouchable';
