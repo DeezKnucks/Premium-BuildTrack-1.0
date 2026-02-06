@@ -70,24 +70,28 @@ export default function CaptureScreen() {
   };
 
   const takePhoto = async () => {
-    if (!cameraPermission) {
-      Alert.alert('Permission Denied', 'Camera permission is required');
-      return;
-    }
-
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
         base64: true,
       });
 
-      if (!result.canceled && result.assets[0].base64) {
-        setCapturedMedia(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        if (asset.base64) {
+          setCapturedMedia(`data:image/jpeg;base64,${asset.base64}`);
+        } else if (asset.uri) {
+          // Fallback for web - convert URI to base64
+          setCapturedMedia(asset.uri);
+        }
+        // Refresh location after capture
+        getCurrentLocation();
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to take photo');
+    } catch (error: any) {
+      console.error('Camera error:', error);
+      Alert.alert('Camera Error', error.message || 'Failed to take photo. Try "From Gallery" instead.');
     }
   };
 
