@@ -33,6 +33,8 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email.trim(), password);
+      // Mark onboarding as seen
+      await AsyncStorage.setItem('hasSeenOnboarding', 'true');
       router.replace('/(tabs)/dashboard');
     } catch (error: any) {
       Alert.alert('Login Failed', error.message || 'Invalid credentials');
