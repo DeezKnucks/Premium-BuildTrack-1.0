@@ -32,7 +32,6 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const confettiRef = useRef<any>(null);
   
   const [stats, setStats] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
