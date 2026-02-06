@@ -41,18 +41,27 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="tasks"
+        options={{
+          title: 'Tasks',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="task" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="capture"
         options={{
           title: 'Capture',
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="camera-alt" size={32} color={color} />
+            <MaterialIcons name="camera-alt" size={28} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="ai"
         options={{
-          title: 'AI Insights',
+          title: 'AI',
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="psychology" size={size} color={color} />
           ),
