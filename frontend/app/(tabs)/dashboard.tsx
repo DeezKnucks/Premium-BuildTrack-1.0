@@ -97,7 +97,7 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.bg }]}>
-        <ActivityIndicator size=\"large\" color={Colors.primary} />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -213,7 +213,7 @@ export default function DashboardScreen() {
                   style={styles.alertContent}
                 >
                   <View style={styles.alertHeader}>
-                    <MaterialIcons name=\"warning\" size={32} color=\"#FFF\" />
+                    <MaterialIcons name="warning" size={32} color="#FFF" />
                     <View style={styles.alertText}>
                       <Text style={styles.alertTitle}>Budget Alert!</Text>
                       <Text style={styles.alertMessage}>
@@ -230,7 +230,7 @@ export default function DashboardScreen() {
                     }}
                   >
                     <Text style={styles.alertButtonText}>View AI Analysis</Text>
-                    <MaterialIcons name=\"arrow-forward\" size={20} color=\"#FFF\" />
+                    <MaterialIcons name="arrow-forward" size={20} color="#FFF" />
                   </TouchableOpacity>
                 </LinearGradient>
               </GlassCard>
@@ -247,7 +247,7 @@ export default function DashboardScreen() {
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               snapToInterval={CARD_WIDTH + 16}
-              decelerationRate=\"fast\"
+              decelerationRate="fast"
               contentContainerStyle={styles.carouselContent}
               onScroll={(e) => {
                 const index = Math.round(e.nativeEvent.contentOffset.x / (CARD_WIDTH + 16));
@@ -278,7 +278,7 @@ export default function DashboardScreen() {
                           end={{ x: 1, y: 1 }}
                           style={styles.projectImageGradient}
                         >
-                          <MaterialIcons name=\"construction\" size={48} color=\"#FFF\" />
+                          <MaterialIcons name="construction" size={48} color="#FFF" />
                         </LinearGradient>
                       </View>
 
@@ -359,7 +359,7 @@ export default function DashboardScreen() {
                   end={{ x: 1, y: 1 }}
                   style={styles.actionCard}
                 >
-                  <MaterialIcons name={action.icon as any} size={32} color=\"#FFF\" />
+                  <MaterialIcons name={action.icon as any} size={32} color="#FFF" />
                   <Text style={styles.actionLabel}>{action.label}</Text>
                 </LinearGradient>
               </AnimatedTouchable>
