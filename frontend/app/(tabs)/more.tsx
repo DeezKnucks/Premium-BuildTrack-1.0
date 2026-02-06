@@ -30,7 +30,7 @@ export default function MoreScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.header}
         >
-          <MaterialIcons name=\"account-circle\" size={80} color=\"#FFF\" />
+          <MaterialIcons name="account-circle" size={80} color="#FFF" />
           <Text style={styles.name}>{user?.full_name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
           <View style={styles.roleBadge}>
@@ -65,24 +65,24 @@ export default function MoreScreen() {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>ACCOUNT</Text>
           <GlassCard>
             <MenuItem
-              icon=\"person\"
-              title=\"Edit Profile\"
+              icon="person"
+              title="Edit Profile"
               onPress={() => {}}
-              badge=\"Coming Soon\"
+              badge="Coming Soon"
               colors={colors}
             />
             <MenuItem
-              icon=\"notifications\"
-              title=\"Notifications\"
+              icon="notifications"
+              title="Notifications"
               onPress={() => {}}
-              badge=\"Coming Soon\"
+              badge="Coming Soon"
               colors={colors}
             />
             <MenuItem
-              icon=\"lock\"
-              title=\"Privacy & Security\"
+              icon="lock"
+              title="Privacy & Security"
               onPress={() => {}}
-              badge=\"Coming Soon\"
+              badge="Coming Soon"
               colors={colors}
             />
           </GlassCard>
@@ -93,30 +93,30 @@ export default function MoreScreen() {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>FEATURES</Text>
           <GlassCard>
             <MenuItem
-              icon=\"photo-library\"
-              title=\"Media Gallery\"
+              icon="photo-library"
+              title="Media Gallery"
               onPress={() => router.push('/media-gallery')}
               colors={colors}
             />
             <MenuItem
-              icon=\"chat\"
-              title=\"Team Chat\"
+              icon="chat"
+              title="Team Chat"
               onPress={() => {}}
-              badge=\"Coming Soon\"
+              badge="Coming Soon"
               colors={colors}
             />
             <MenuItem
-              icon=\"store\"
-              title=\"Vendor Marketplace\"
+              icon="store"
+              title="Vendor Marketplace"
               onPress={() => {}}
-              badge=\"Coming Soon\"
+              badge="Coming Soon"
               colors={colors}
             />
             <MenuItem
-              icon=\"assessment\"
-              title=\"Reports & Analytics\"
+              icon="assessment"
+              title="Reports & Analytics"
               onPress={() => {}}
-              badge=\"Coming Soon\"
+              badge="Coming Soon"
               colors={colors}
             />
           </GlassCard>
@@ -126,9 +126,9 @@ export default function MoreScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>SUPPORT</Text>
           <GlassCard>
-            <MenuItem icon=\"help\" title=\"Help Center\" onPress={() => {}} colors={colors} />
-            <MenuItem icon=\"feedback\" title=\"Send Feedback\" onPress={() => {}} colors={colors} />
-            <MenuItem icon=\"info\" title=\"About BuildTrack\" onPress={() => {}} colors={colors} />
+            <MenuItem icon="help" title="Help Center" onPress={() => {}} colors={colors} />
+            <MenuItem icon="feedback" title="Send Feedback" onPress={() => {}} colors={colors} />
+            <MenuItem icon="info" title="About BuildTrack" onPress={() => {}} colors={colors} />
           </GlassCard>
         </View>
 
@@ -151,7 +151,7 @@ export default function MoreScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.logoutButton}
             >
-              <MaterialIcons name=\"logout\" size={24} color=\"#FFF\" />
+              <MaterialIcons name="logout" size={24} color="#FFF" />
               <Text style={styles.logoutText}>Logout</Text>
             </LinearGradient>
           </AnimatedTouchable>
@@ -184,7 +184,7 @@ function MenuItem({ icon, title, onPress, badge, colors }: MenuItemProps) {
             <Text style={styles.badgeText}>{badge}</Text>
           </View>
         )}
-        <MaterialIcons name=\"chevron-right\" size={24} color={colors.textSecondary} />
+        <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
       </View>
     </AnimatedTouchable>
   );
