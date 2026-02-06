@@ -88,7 +88,6 @@ export default function DashboardScreen() {
 
   const handleTaskComplete = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    confettiRef.current?.start();
   };
 
   if (loading) {
@@ -103,24 +102,10 @@ export default function DashboardScreen() {
     ? (stats.completed_tasks / stats.total_tasks) * 100
     : 0;
 
-  const budgetData = [
-    { x: 'Used', y: stats?.actual_cost || 0 },
-    { x: 'Remaining', y: Math.max(0, (stats?.total_budget || 0) - (stats?.actual_cost || 0)) },
-  ];
-
   const hasHighRisk = Math.abs(stats?.budget_variance || 0) > 10;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={['top']}>
-      {/* Confetti for celebrations */}
-      <ConfettiCannon
-        ref={confettiRef}
-        count={150}
-        origin={{ x: width / 2, y: -10 }}
-        autoStart={false}
-        fadeOut
-      />
-
       {/* Header with Logo */}
       <LinearGradient
         colors={[Colors.primary, Colors.primaryDark]}
