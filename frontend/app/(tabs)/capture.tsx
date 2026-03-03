@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,20 +12,25 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Camera } from 'expo-camera';
 import api from '../../services/api';
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { GlassCard } from '../../components/GlassCard';
+import { AnimatedTouchable } from '../../components/AnimatedTouchable';
 
 export default function CaptureScreen() {
+  const { colors } = useTheme();
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [capturedMedia, setCapturedMedia] = useState<string | null>(null);
   const [location, setLocation] = useState<any>(null);
   const [notes, setNotes] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [cameraPermission, setCameraPermission] = useState(false);
-  const [locationPermission, setLocationPermission] = useState(false);
 
   useEffect(() => {
     requestPermissions();
@@ -34,22 +39,16 @@ export default function CaptureScreen() {
   }, []);
 
   const requestPermissions = async () => {
-    const cameraStatus = await Camera.requestCameraPermissionsAsync();
-    setCameraPermission(cameraStatus.status === 'granted');
-
-    const locationStatus = await Location.requestForegroundPermissionsAsync();
-    setLocationPermission(locationStatus.status === 'granted');
-
-    const imageStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    await Camera.requestCameraPermissionsAsync();
+    await Location.requestForegroundPermissionsAsync();
+    await ImagePicker.requestMediaLibraryPermissionsAsync();
   };
 
   const loadProjects = async () => {
     try {
       const data = await api.getProjects();
       setProjects(data);
-      if (data.length > 0) {
-        setSelectedProject(data[0].id);
-      }
+      if (data.length > 0) setSelectedProject(data[0].id);
     } catch (error) {
       console.error('Failed to load projects:', error);
     }
@@ -57,19 +56,15 @@ export default function CaptureScreen() {
 
   const getCurrentLocation = async () => {
     try {
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      setLocation({
-        lat: loc.coords.latitude,
-        lng: loc.coords.longitude,
-      });
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
     } catch (error) {
       console.error('Failed to get location:', error);
     }
   };
 
   const takePhoto = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -83,19 +78,17 @@ export default function CaptureScreen() {
         if (asset.base64) {
           setCapturedMedia(`data:image/jpeg;base64,${asset.base64}`);
         } else if (asset.uri) {
-          // Fallback for web - convert URI to base64
           setCapturedMedia(asset.uri);
         }
-        // Refresh location after capture
         getCurrentLocation();
       }
     } catch (error: any) {
-      console.error('Camera error:', error);
-      Alert.alert('Camera Error', error.message || 'Failed to take photo. Try "From Gallery" instead.');
+      Alert.alert('Camera Error', error.message || 'Failed to take photo.');
     }
   };
 
   const pickFromGallery = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.All,
@@ -117,7 +110,6 @@ export default function CaptureScreen() {
       Alert.alert('Error', 'Please capture or select media first');
       return;
     }
-
     if (!selectedProject) {
       Alert.alert('Error', 'Please select a project');
       return;
@@ -133,7 +125,7 @@ export default function CaptureScreen() {
         notes: notes,
         tags: ['field-capture', new Date().toISOString().split('T')[0]],
       });
-
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Success', 'Media uploaded successfully!');
       setCapturedMedia(null);
       setNotes('');
@@ -145,41 +137,36 @@ export default function CaptureScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Field Capture</Text>
-        <View style={styles.locationBadge}>
-          <MaterialIcons name="location-on" size={16} color="#4CAF50" />
-          <Text style={styles.locationText}>
-            {location ? 'GPS Active' : 'Getting GPS...'}
-          </Text>
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={['top']}>
+      {/* Premium Header */}
+      <LinearGradient
+        colors={[Colors.success, '#059669']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
       >
+        <View>
+          <Text style={styles.headerTitle}>Field Capture</Text>
+          <Text style={styles.headerSubtitle}>GPS-Tagged Documentation</Text>
+        </View>
+        <View style={styles.gpsIndicator}>
+          <MaterialIcons name="gps-fixed" size={20} color={location ? '#4ADE80' : '#FFF'} />
+          <Text style={styles.gpsText}>{location ? 'GPS Active' : 'Locating...'}</Text>
+        </View>
+      </LinearGradient>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Project Selector */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Project</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Project</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {projects.map((project) => (
               <TouchableOpacity
                 key={project.id}
-                style={[
-                  styles.projectChip,
-                  selectedProject === project.id && styles.projectChipActive,
-                ]}
+                style={[styles.projectChip, selectedProject === project.id && styles.projectChipActive]}
                 onPress={() => setSelectedProject(project.id)}
               >
-                <Text
-                  style={[
-                    styles.projectChipText,
-                    selectedProject === project.id && styles.projectChipTextActive,
-                  ]}
-                >
+                <Text style={[styles.projectChipText, selectedProject === project.id && styles.projectChipTextActive]}>
                   {project.name}
                 </Text>
               </TouchableOpacity>
@@ -189,66 +176,66 @@ export default function CaptureScreen() {
 
         {/* Capture Buttons */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Capture Media</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Capture Media</Text>
           <View style={styles.captureButtons}>
-            <TouchableOpacity style={styles.captureButton} onPress={takePhoto}>
-              <View style={styles.captureButtonIcon}>
-                <MaterialIcons name="camera-alt" size={32} color="#FF6B35" />
-              </View>
-              <Text style={styles.captureButtonText}>Take Photo</Text>
-              <Text style={styles.captureButtonSubtext}>Camera with GPS tag</Text>
-            </TouchableOpacity>
+            <AnimatedTouchable style={styles.captureButton} onPress={takePhoto}>
+              <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={styles.captureButtonGradient}>
+                <MaterialIcons name="camera-alt" size={40} color="#FFF" />
+                <Text style={styles.captureButtonText}>Take Photo</Text>
+                <Text style={styles.captureButtonSubtext}>With GPS Tag</Text>
+              </LinearGradient>
+            </AnimatedTouchable>
 
-            <TouchableOpacity style={styles.captureButton} onPress={pickFromGallery}>
-              <View style={styles.captureButtonIcon}>
-                <MaterialIcons name="photo-library" size={32} color="#FF6B35" />
-              </View>
-              <Text style={styles.captureButtonText}>From Gallery</Text>
-              <Text style={styles.captureButtonSubtext}>Select existing photo</Text>
-            </TouchableOpacity>
+            <AnimatedTouchable style={styles.captureButton} onPress={pickFromGallery}>
+              <LinearGradient colors={[Colors.secondary, Colors.secondaryLight]} style={styles.captureButtonGradient}>
+                <MaterialIcons name="photo-library" size={40} color="#FFF" />
+                <Text style={styles.captureButtonText}>Gallery</Text>
+                <Text style={styles.captureButtonSubtext}>Select Photo</Text>
+              </LinearGradient>
+            </AnimatedTouchable>
           </View>
 
-          <TouchableOpacity style={styles.voiceButton}>
-            <MaterialIcons name="mic" size={24} color="#FFF" />
-            <Text style={styles.voiceButtonText}>Record Voice Note</Text>
-            <Text style={styles.comingSoon}>Coming Soon</Text>
-          </TouchableOpacity>
+          <GlassCard style={styles.voiceButton}>
+            <MaterialIcons name="mic" size={24} color={Colors.primary} />
+            <Text style={[styles.voiceButtonText, { color: colors.text }]}>Record Voice Note</Text>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>Coming Soon</Text>
+            </View>
+          </GlassCard>
         </View>
 
         {/* Preview */}
         {capturedMedia && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Preview</Text>
-            <View style={styles.previewCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Preview</Text>
+            <GlassCard style={styles.previewCard}>
               <Image source={{ uri: capturedMedia }} style={styles.previewImage} />
               <View style={styles.previewInfo}>
                 <View style={styles.infoRow}>
-                  <MaterialIcons name="access-time" size={16} color="#999" />
-                  <Text style={styles.infoText}>
-                    {new Date().toLocaleString()}
-                  </Text>
+                  <MaterialIcons name="access-time" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.infoText, { color: colors.textSecondary }]}>{new Date().toLocaleString()}</Text>
                 </View>
                 {location && (
                   <View style={styles.infoRow}>
-                    <MaterialIcons name="location-on" size={16} color="#4CAF50" />
-                    <Text style={styles.infoText}>
+                    <MaterialIcons name="location-on" size={16} color={Colors.success} />
+                    <Text style={[styles.infoText, { color: colors.textSecondary }]}>
                       {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
                     </Text>
                   </View>
                 )}
               </View>
-            </View>
+            </GlassCard>
           </View>
         )}
 
         {/* Notes */}
         {capturedMedia && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Add Notes (Optional)</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Add Notes (Optional)</Text>
             <TextInput
-              style={styles.notesInput}
+              style={[styles.notesInput, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
               placeholder="Add notes about this capture..."
-              placeholderTextColor="#666"
+              placeholderTextColor={colors.textSecondary}
               value={notes}
               onChangeText={setNotes}
               multiline
@@ -259,249 +246,108 @@ export default function CaptureScreen() {
 
         {/* Upload Button */}
         {capturedMedia && (
-          <TouchableOpacity
-            style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
-            onPress={handleUpload}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <>
-                <MaterialIcons name="cloud-upload" size={24} color="#FFF" />
-                <Text style={styles.uploadButtonText}>Upload to Project</Text>
-              </>
-            )}
+          <TouchableOpacity onPress={handleUpload} disabled={uploading}>
+            <LinearGradient
+              colors={uploading ? [Colors.dark.border, Colors.dark.border] : [Colors.success, '#059669']}
+              style={styles.uploadButton}
+            >
+              {uploading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <>
+                  <MaterialIcons name="cloud-upload" size={24} color="#FFF" />
+                  <Text style={styles.uploadButtonText}>Upload to Project</Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         )}
 
         {/* Info Cards */}
         <View style={styles.section}>
-          <View style={styles.infoCard}>
-            <MaterialIcons name="info-outline" size={24} color="#2196F3" />
+          <GlassCard style={styles.infoCard}>
+            <MaterialIcons name="gps-fixed" size={28} color={Colors.success} />
             <View style={styles.infoCardContent}>
-              <Text style={styles.infoCardTitle}>GPS Tagging</Text>
-              <Text style={styles.infoCardText}>
-                All photos are automatically tagged with your current GPS location and
-                timestamp for accurate field documentation.
+              <Text style={[styles.infoCardTitle, { color: colors.text }]}>GPS Tagging</Text>
+              <Text style={[styles.infoCardText, { color: colors.textSecondary }]}>
+                All photos are automatically tagged with your current GPS location and timestamp.
               </Text>
             </View>
-          </View>
+          </GlassCard>
 
-          <View style={styles.infoCard}>
-            <MaterialIcons name="offline-pin" size={24} color="#4CAF50" />
+          <GlassCard style={styles.infoCard}>
+            <MaterialIcons name="offline-pin" size={28} color={Colors.info} />
             <View style={styles.infoCardContent}>
-              <Text style={styles.infoCardTitle}>Offline Ready</Text>
-              <Text style={styles.infoCardText}>
-                Captures are saved locally and will sync automatically when you're back
-                online.
+              <Text style={[styles.infoCardTitle, { color: colors.text }]}>Offline Ready</Text>
+              <Text style={[styles.infoCardText, { color: colors.textSecondary }]}>
+                Captures are saved locally and sync automatically when back online.
               </Text>
             </View>
-          </View>
+          </GlassCard>
         </View>
 
-        <View style={{ height: 24 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F0F23',
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
+    ...Shadows.lg,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-  locationBadge: {
+  headerTitle: { fontSize: Typography['3xl'], fontWeight: Typography.extrabold, color: '#FFF' },
+  headerSubtitle: { fontSize: Typography.sm, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  gpsIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A2E',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
   },
-  locationText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFF',
-    marginBottom: 12,
-  },
+  gpsText: { fontSize: 12, color: '#FFF', fontWeight: '600' },
+  content: { flex: 1, paddingHorizontal: Spacing.lg },
+  section: { marginTop: Spacing.lg },
+  sectionTitle: { fontSize: Typography.lg, fontWeight: Typography.bold, marginBottom: Spacing.md },
   projectChip: {
-    backgroundColor: '#1A1A2E',
+    backgroundColor: Colors.dark.card,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#2A2A3E',
+    borderColor: Colors.dark.border,
   },
-  projectChipActive: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
-  },
-  projectChipText: {
-    color: '#999',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  projectChipTextActive: {
-    color: '#FFF',
-  },
-  captureButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  captureButton: {
-    flex: 1,
-    backgroundColor: '#1A1A2E',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2A2A3E',
-  },
-  captureButtonIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#2A2A3E',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  captureButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-    marginBottom: 4,
-  },
-  captureButtonSubtext: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-  },
-  voiceButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1A1A2E',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#2A2A3E',
-    gap: 12,
-  },
-  voiceButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-  },
-  comingSoon: {
-    fontSize: 12,
-    color: '#FF9800',
-    fontWeight: '600',
-  },
-  previewCard: {
-    backgroundColor: '#1A1A2E',
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#2A2A3E',
-  },
-  previewImage: {
-    width: '100%',
-    height: 250,
-    resizeMode: 'cover',
-  },
-  previewInfo: {
-    padding: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#999',
-  },
-  notesInput: {
-    backgroundColor: '#1A1A2E',
-    borderRadius: 12,
-    padding: 16,
-    color: '#FFF',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#2A2A3E',
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  uploadButton: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 12,
-    padding: 18,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 24,
-  },
-  uploadButtonDisabled: {
-    opacity: 0.6,
-  },
-  uploadButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFF',
-  },
-  infoCard: {
-    flexDirection: 'row',
-    backgroundColor: '#1A1A2E',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#2A2A3E',
-    gap: 16,
-  },
-  infoCardContent: {
-    flex: 1,
-  },
-  infoCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-    marginBottom: 4,
-  },
-  infoCardText: {
-    fontSize: 14,
-    color: '#999',
-    lineHeight: 20,
-  },
+  projectChipActive: { backgroundColor: Colors.success, borderColor: Colors.success },
+  projectChipText: { color: Colors.dark.textSecondary, fontSize: 14, fontWeight: '600' },
+  projectChipTextActive: { color: '#FFF' },
+  captureButtons: { flexDirection: 'row', gap: 12 },
+  captureButton: { flex: 1, borderRadius: 16, overflow: 'hidden' },
+  captureButtonGradient: { padding: 24, alignItems: 'center', justifyContent: 'center', minHeight: 140 },
+  captureButtonText: { fontSize: 16, fontWeight: '700', color: '#FFF', marginTop: 12 },
+  captureButtonSubtext: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  voiceButton: { flexDirection: 'row', alignItems: 'center', padding: 16, marginTop: 12, gap: 12 },
+  voiceButtonText: { fontSize: 16, fontWeight: '600', flex: 1 },
+  comingSoonBadge: { backgroundColor: Colors.warning + '20', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  comingSoonText: { fontSize: 11, color: Colors.warning, fontWeight: '700' },
+  previewCard: { padding: 0, overflow: 'hidden' },
+  previewImage: { width: '100%', height: 250, resizeMode: 'cover' },
+  previewInfo: { padding: 16 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  infoText: { fontSize: 14 },
+  notesInput: { borderRadius: 12, padding: 16, fontSize: 16, borderWidth: 1, height: 100, textAlignVertical: 'top' },
+  uploadButton: { borderRadius: 12, padding: 18, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: Spacing.lg },
+  uploadButtonText: { fontSize: 18, fontWeight: '600', color: '#FFF' },
+  infoCard: { flexDirection: 'row', padding: 16, marginBottom: 12, gap: 16 },
+  infoCardContent: { flex: 1 },
+  infoCardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  infoCardText: { fontSize: 14, lineHeight: 20 },
 });

@@ -11,17 +11,25 @@ import {
   Modal,
   Alert,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import api from '../../services/api';
 import { format } from 'date-fns';
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { GlassCard } from '../../components/GlassCard';
+import { AnimatedTouchable } from '../../components/AnimatedTouchable';
 
 const { width } = Dimensions.get('window');
 
 export default function ProjectsScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,7 +52,6 @@ export default function ProjectsScreen() {
       setProjects(data);
     } catch (error) {
       console.error('Failed to load projects:', error);
-      Alert.alert('Error', 'Failed to load projects');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -52,6 +59,7 @@ export default function ProjectsScreen() {
   };
 
   const onRefresh = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     loadProjects();
   };
@@ -70,12 +78,9 @@ export default function ProjectsScreen() {
         start_date: newProject.start_date,
         end_date: newProject.end_date,
         status: 'planning',
-        location: {
-          lat: 30.2672,
-          lng: -97.7431,
-          address: 'Austin, TX',
-        },
+        location: { lat: 30.2672, lng: -97.7431, address: 'Austin, TX' },
       });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModalVisible(false);
       setNewProject({
         name: '',
@@ -93,38 +98,60 @@ export default function ProjectsScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
-        return '#4CAF50';
-      case 'planning':
-        return '#2196F3';
-      case 'on_hold':
-        return '#FF9800';
-      case 'completed':
-        return '#9C27B0';
-      default:
-        return '#666';
+      case 'active': return Colors.success;
+      case 'planning': return Colors.info;
+      case 'on_hold': return Colors.warning;
+      case 'completed': return Colors.completed;
+      default: return Colors.dark.textSecondary;
+    }
+  };
+
+  const getStatusGradient = (status: string): [string, string] => {
+    switch (status) {
+      case 'active': return [Colors.success, '#059669'];
+      case 'planning': return [Colors.info, Colors.secondary];
+      case 'on_hold': return [Colors.warning, '#D97706'];
+      case 'completed': return [Colors.completed, '#7C3AED'];
+      default: return [Colors.dark.card, Colors.dark.border];
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B35" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Projects</Text>
-        <TouchableOpacity
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={['top']}>
+      {/* Premium Header */}
+      <LinearGradient
+        colors={[Colors.secondary, Colors.secondaryDark]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <View>
+          <Text style={styles.headerTitle}>Projects</Text>
+          <Text style={styles.headerSubtitle}>{projects.length} Total Projects</Text>
+        </View>
+        <AnimatedTouchable
           style={styles.addButton}
-          onPress={() => setModalVisible(true)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setModalVisible(true);
+          }}
         >
-          <MaterialIcons name="add-circle" size={32} color="#FF6B35" />
-        </TouchableOpacity>
-      </View>
+          <LinearGradient
+            colors={[Colors.primary, Colors.primaryDark]}
+            style={styles.addButtonGradient}
+          >
+            <MaterialIcons name="add" size={28} color="#FFF" />
+          </LinearGradient>
+        </AnimatedTouchable>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -133,110 +160,116 @@ export default function ProjectsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#FF6B35"
+            tintColor={Colors.primary}
           />
         }
       >
         {projects.length === 0 ? (
           <View style={styles.emptyState}>
-            <MaterialIcons name="folder-open" size={64} color="#666" />
-            <Text style={styles.emptyText}>No projects yet</Text>
-            <Text style={styles.emptySubtext}>
+            <View style={styles.emptyIconContainer}>
+              <MaterialIcons name="folder-open" size={64} color={Colors.primary} />
+            </View>
+            <Text style={[styles.emptyText, { color: colors.text }]}>No projects yet</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
               Tap the + button to create your first project
             </Text>
           </View>
         ) : (
-          projects.map((project) => (
-            <TouchableOpacity
+          projects.map((project, index) => (
+            <AnimatedTouchable
               key={project.id}
-              style={styles.projectCard}
-              activeOpacity={0.7}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
             >
-              <View style={styles.projectHeader}>
-                <View style={styles.projectTitleRow}>
-                  <MaterialIcons name="construction" size={24} color="#FF6B35" />
-                  <Text style={styles.projectName}>{project.name}</Text>
+              <GlassCard style={styles.projectCard}>
+                <View style={styles.projectHeader}>
+                  <View style={styles.projectTitleRow}>
+                    <LinearGradient
+                      colors={getStatusGradient(project.status)}
+                      style={styles.projectIcon}
+                    >
+                      <MaterialIcons name="construction" size={24} color="#FFF" />
+                    </LinearGradient>
+                    <View style={styles.projectTitleContainer}>
+                      <Text style={[styles.projectName, { color: colors.text }]} numberOfLines={1}>
+                        {project.name}
+                      </Text>
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status) + '20' }]}>
+                        <View style={[styles.statusDot, { backgroundColor: getStatusColor(project.status) }]} />
+                        <Text style={[styles.statusText, { color: getStatusColor(project.status) }]}>
+                          {project.status}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
                 </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: getStatusColor(project.status) + '20' },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      { color: getStatusColor(project.status) },
-                    ]}
-                  >
-                    {project.status}
+
+                {project.description && (
+                  <Text style={[styles.projectDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+                    {project.description}
                   </Text>
-                </View>
-              </View>
+                )}
 
-              {project.description && (
-                <Text style={styles.projectDescription} numberOfLines={2}>
-                  {project.description}
-                </Text>
-              )}
+                <View style={styles.projectStats}>
+                  <View style={styles.statItem}>
+                    <MaterialIcons name="attach-money" size={20} color={Colors.success} />
+                    <View>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Budget</Text>
+                      <Text style={[styles.statValue, { color: colors.text }]}>
+                        ${(project.budget / 1000).toFixed(0)}K
+                      </Text>
+                    </View>
+                  </View>
 
-              <View style={styles.projectStats}>
-                <View style={styles.statItem}>
-                  <MaterialIcons name="attach-money" size={20} color="#4CAF50" />
-                  <View>
-                    <Text style={styles.statLabel}>Budget</Text>
-                    <Text style={styles.statValue}>
-                      ${(project.budget / 1000).toFixed(0)}K
-                    </Text>
+                  <View style={styles.statItem}>
+                    <MaterialIcons name="show-chart" size={20} color={Colors.info} />
+                    <View>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Progress</Text>
+                      <Text style={[styles.statValue, { color: colors.text }]}>
+                        {project.completion_percentage}%
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.statItem}>
+                    <MaterialIcons name="group" size={20} color={Colors.primary} />
+                    <View>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Team</Text>
+                      <Text style={[styles.statValue, { color: colors.text }]}>
+                        {project.team_members?.length || 0}
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
-                <View style={styles.statItem}>
-                  <MaterialIcons name="show-chart" size={20} color="#2196F3" />
-                  <View>
-                    <Text style={styles.statLabel}>Progress</Text>
-                    <Text style={styles.statValue}>
-                      {project.completion_percentage}%
-                    </Text>
+                {/* Progress bar */}
+                <View style={styles.progressContainer}>
+                  <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                    <LinearGradient
+                      colors={[Colors.primary, Colors.primaryDark]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.progressFill, { width: `${project.completion_percentage}%` }]}
+                    />
                   </View>
                 </View>
 
-                <View style={styles.statItem}>
-                  <MaterialIcons name="group" size={20} color="#FF6B35" />
-                  <View>
-                    <Text style={styles.statLabel}>Team</Text>
-                    <Text style={styles.statValue}>
-                      {project.team_members?.length || 0}
+                <View style={styles.projectFooter}>
+                  <View style={styles.dateInfo}>
+                    <MaterialIcons name="calendar-today" size={14} color={colors.textSecondary} />
+                    <Text style={[styles.dateText, { color: colors.textSecondary }]}>
+                      {format(new Date(project.start_date), 'MMM dd')} - {format(new Date(project.end_date), 'MMM dd, yyyy')}
                     </Text>
                   </View>
+                  <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
                 </View>
-              </View>
-
-              <View style={styles.projectFooter}>
-                <View style={styles.dateInfo}>
-                  <MaterialIcons name="calendar-today" size={16} color="#999" />
-                  <Text style={styles.dateText}>
-                    {format(new Date(project.start_date), 'MMM dd')} -{' '}
-                    {format(new Date(project.end_date), 'MMM dd, yyyy')}
-                  </Text>
-                </View>
-                <MaterialIcons name="chevron-right" size={24} color="#666" />
-              </View>
-
-              {/* Progress bar */}
-              <View style={styles.progressBar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    { width: `${project.completion_percentage}%` },
-                  ]}
-                />
-              </View>
-            </TouchableOpacity>
+              </GlassCard>
+            </AnimatedTouchable>
           ))
         )}
 
-        <View style={{ height: 24 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Create Project Modal */}
@@ -247,62 +280,58 @@ export default function ProjectsScreen() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Project</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>New Project</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color="#FFF" />
+                <MaterialIcons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Project Name *</Text>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Project Name *</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
                   placeholder="Enter project name"
-                  placeholderTextColor="#666"
+                  placeholderTextColor={colors.textSecondary}
                   value={newProject.name}
-                  onChangeText={(text) =>
-                    setNewProject({ ...newProject, name: text })
-                  }
+                  onChangeText={(text) => setNewProject({ ...newProject, name: text })}
                 />
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description</Text>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Description</Text>
                 <TextInput
-                  style={[styles.input, styles.textArea]}
+                  style={[styles.input, styles.textArea, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
                   placeholder="Enter project description"
-                  placeholderTextColor="#666"
+                  placeholderTextColor={colors.textSecondary}
                   value={newProject.description}
-                  onChangeText={(text) =>
-                    setNewProject({ ...newProject, description: text })
-                  }
+                  onChangeText={(text) => setNewProject({ ...newProject, description: text })}
                   multiline
                   numberOfLines={4}
                 />
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Budget (USD) *</Text>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Budget (USD) *</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }]}
                   placeholder="Enter budget amount"
-                  placeholderTextColor="#666"
+                  placeholderTextColor={colors.textSecondary}
                   value={newProject.budget}
-                  onChangeText={(text) =>
-                    setNewProject({ ...newProject, budget: text })
-                  }
+                  onChangeText={(text) => setNewProject({ ...newProject, budget: text })}
                   keyboardType="numeric"
                 />
               </View>
 
-              <TouchableOpacity
-                style={styles.createButton}
-                onPress={handleCreateProject}
-              >
-                <Text style={styles.createButtonText}>Create Project</Text>
+              <TouchableOpacity onPress={handleCreateProject}>
+                <LinearGradient
+                  colors={[Colors.primary, Colors.primaryDark]}
+                  style={styles.createButton}
+                >
+                  <Text style={styles.createButtonText}>Create Project</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -313,199 +342,57 @@ export default function ProjectsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F0F23',
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#0F0F23',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
+    ...Shadows.lg,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFF',
+  headerTitle: { fontSize: Typography['3xl'], fontWeight: Typography.extrabold, color: '#FFF' },
+  headerSubtitle: { fontSize: Typography.sm, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  addButton: { borderRadius: 16, overflow: 'hidden' },
+  addButtonGradient: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center', borderRadius: 16 },
+  content: { flex: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80 },
+  emptyIconContainer: {
+    width: 120, height: 120, borderRadius: 60,
+    backgroundColor: Colors.primary + '20',
+    justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.lg,
   },
-  addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#1A1A2E',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-  },
-  emptyText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFF',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 16,
-    color: '#999',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  projectCard: {
-    backgroundColor: '#1A1A2E',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#2A2A3E',
-  },
-  projectHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  projectTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  projectName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginLeft: 12,
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  projectDescription: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  projectStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-  },
-  projectFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  dateInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dateText: {
-    fontSize: 14,
-    color: '#999',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#2A2A3E',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#FF6B35',
-    borderRadius: 3,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#1A1A2E',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#0F0F23',
-    borderRadius: 12,
-    padding: 16,
-    color: '#FFF',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#2A2A3E',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  createButton: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  createButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFF',
-  },
+  emptyText: { fontSize: Typography.xl, fontWeight: Typography.bold, marginTop: Spacing.base },
+  emptySubtext: { fontSize: Typography.base, marginTop: Spacing.sm, textAlign: 'center', paddingHorizontal: 40 },
+  projectCard: { marginBottom: Spacing.base, padding: Spacing.lg },
+  projectHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md },
+  projectTitleRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  projectIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  projectTitleContainer: { marginLeft: Spacing.md, flex: 1 },
+  projectName: { fontSize: Typography.lg, fontWeight: Typography.bold },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 4, alignSelf: 'flex-start' },
+  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  statusText: { fontSize: Typography.xs, fontWeight: Typography.bold, textTransform: 'capitalize' },
+  projectDescription: { fontSize: Typography.sm, marginBottom: Spacing.base, lineHeight: 20 },
+  projectStats: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.base },
+  statItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  statLabel: { fontSize: Typography.xs },
+  statValue: { fontSize: Typography.base, fontWeight: Typography.bold },
+  progressContainer: { marginBottom: Spacing.md },
+  progressBar: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3 },
+  projectFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dateInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dateText: { fontSize: Typography.sm },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: Typography['2xl'], fontWeight: Typography.bold },
+  inputGroup: { marginBottom: 20 },
+  inputLabel: { fontSize: Typography.base, fontWeight: Typography.semibold, marginBottom: 8 },
+  input: { borderRadius: 12, padding: 16, fontSize: Typography.base, borderWidth: 1 },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  createButton: { borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8 },
+  createButtonText: { fontSize: Typography.lg, fontWeight: Typography.bold, color: '#FFF' },
 });
