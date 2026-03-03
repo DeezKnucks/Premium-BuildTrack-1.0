@@ -11,7 +11,7 @@ import os
 from datetime import datetime, timedelta
 
 # Get backend URL from frontend .env
-BACKEND_URL = "https://buildwiz-4.preview.emergentagent.com/api"
+BACKEND_URL = "https://workflow-engine-83.preview.emergentagent.com/api"
 
 async def test_auth_without_token():
     """Test authentication without token"""
