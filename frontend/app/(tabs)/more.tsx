@@ -108,15 +108,13 @@ export default function MoreScreen() {
             <MenuItem
               icon="store"
               title="Vendor Marketplace"
-              onPress={() => {}}
-              badge="Coming Soon"
+              onPress={() => router.push('/marketplace')}
               colors={colors}
             />
             <MenuItem
               icon="assessment"
               title="Reports & Analytics"
-              onPress={() => {}}
-              badge="Coming Soon"
+              onPress={() => router.push('/reports')}
               colors={colors}
             />
           </GlassCard>
