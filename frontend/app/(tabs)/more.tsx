@@ -90,6 +90,20 @@ export default function MoreScreen() {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>FEATURES</Text>
           <GlassCard>
             <MenuItem
+              icon="add-circle"
+              title="Create Project Wizard"
+              subtitle="AI-assisted project setup"
+              onPress={() => router.push('/project-wizard')}
+              colors={colors}
+            />
+            <MenuItem
+              icon="shield"
+              title="Safety Monitor"
+              subtitle="Fall detection & sensor data"
+              onPress={() => router.push('/safety-monitor')}
+              colors={colors}
+            />
+            <MenuItem
               icon="photo-library"
               title="Media Gallery"
               onPress={() => router.push('/media-gallery')}
@@ -160,17 +174,23 @@ export default function MoreScreen() {
 interface MenuItemProps {
   icon: any;
   title: string;
+  subtitle?: string;
   onPress: () => void;
   badge?: string;
   colors: any;
 }
 
-function MenuItem({ icon, title, onPress, badge, colors }: MenuItemProps) {
+function MenuItem({ icon, title, subtitle, onPress, badge, colors }: MenuItemProps) {
   return (
     <AnimatedTouchable style={styles.menuItem} onPress={onPress}>
       <View style={styles.menuItemLeft}>
         <MaterialIcons name={icon} size={24} color={Colors.primary} />
-        <Text style={[styles.menuText, { color: colors.text }]}>{title}</Text>
+        <View>
+          <Text style={[styles.menuText, { color: colors.text }]}>{title}</Text>
+          {subtitle && (
+            <Text style={[styles.menuSubtext, { color: colors.textSecondary }]}>{subtitle}</Text>
+          )}
+        </View>
       </View>
       <View style={styles.menuItemRight}>
         {badge && (
@@ -270,6 +290,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.base,
     fontWeight: Typography.semibold,
     marginLeft: Spacing.md,
+  },
+  menuSubtext: {
+    fontSize: Typography.xs,
+    marginLeft: Spacing.md,
+    marginTop: 2,
   },
   menuItemRight: {
     flexDirection: 'row',

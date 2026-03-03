@@ -2,11 +2,11 @@
 
 ## Project Overview
 **Product Name:** BuildTrack  
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Last Updated:** March 3, 2026  
 **Founder:** Peter Martinez
 
-BuildTrack is a mobile-first construction project management application designed for mid-market contractors ($5M-$500M projects). The app leverages AI to predict risks, optimize workflows, and unify fragmented construction tools into one comprehensive platform.
+BuildTrack is a mobile-first construction project management application designed for mid-market contractors ($5M-$500M projects). The app leverages AI to predict risks, optimize workflows, and unify fragmented construction tools. **NEW:** Now includes smartphone sensor integration for safety monitoring.
 
 ---
 
@@ -23,127 +23,122 @@ BuildTrack is a mobile-first construction project management application designe
 - ✅ Project status tracking (planning, active, on_hold, completed)
 - ✅ Budget tracking with variance analysis
 - ✅ Team member assignment
-- ✅ Completion percentage tracking
+- ✅ **NEW: Project Creation Wizard** with AI-assisted budget estimation
 
 ### 3. Task Management
 - ✅ Full CRUD operations for tasks
 - ✅ Task assignment to team members
 - ✅ Priority levels (low, medium, high, critical)
-- ✅ Due date tracking
-- ✅ Task dependencies
+- ✅ Due date tracking, task dependencies
 
 ### 4. Media Capture
 - ✅ Photo capture with GPS tagging
 - ✅ Media gallery with project association
-- ✅ Offline-capable capture (foundation ready)
 
 ### 5. AI Features (Integrated via Emergent LLM)
 - ✅ Risk prediction engine
 - ✅ Budget analysis with alerts
 - ✅ Schedule optimization recommendations
-- ✅ Compliance checking
-- ✅ Vendor scouting
+- ✅ **NEW: AI Budget Estimation** - Calculates project costs based on type, location, and size
 
 ### 6. Dashboard & Analytics
 - ✅ Overview metrics (active projects, task completion)
 - ✅ Weekly progress bar charts
 - ✅ Budget status tracking
 - ✅ Performance donut chart
-- ✅ Project carousel
 
-### 7. Reporting
-- ✅ Team reports
-- ✅ Budget/financial reports
-- ✅ Timeline reports
-- ✅ Safety reports
-- ✅ Materials reports
-- ✅ Sustainability reports
+### 7. **NEW: Safety Monitoring System**
+- ✅ **Smartphone Sensor Integration** - Uses device accelerometer, gyroscope, barometer, GPS
+- ✅ **Fall Detection Algorithm** - Detects free-fall patterns followed by impact
+- ✅ **Impact Detection** - Alerts on high-G impacts
+- ✅ **Prolonged Stillness Detection** - Monitors for no movement periods
+- ✅ **Activity Tracking** - Steps, distance, floors climbed, calories
+- ✅ **Geofencing** - Job site boundary monitoring
+- ✅ **Rapid Descent Detection** - Monitors altitude changes (barometer)
+- ✅ **Emergency SOS Button** - Quick alert to emergency contacts
 
-### 8. Additional Features
+### 8. Reporting
+- ✅ Team reports, Budget/financial reports
+- ✅ Timeline, Safety, Materials, Sustainability reports
+
+### 9. Additional Features
 - ✅ Vendor marketplace
-- ✅ Chat interface (UI ready)
-- ✅ Settings screen
+- ✅ Chat interface, Settings screen
 - ✅ User profile editing
 - ✅ Weather integration (OpenWeatherMap)
-
----
-
-## UI/UX Implementation
-
-### Design System
-- **Primary Color:** #FF6B35 (Orange)
-- **Secondary Color:** #1E3A8A (Navy Blue)
-- **Background:** #0F0F23 (Dark Navy)
-- **Premium glassmorphism effects**
-- **Custom icons in tab navigation**
-- **Animated splash screen**
-
-### Screens Implemented
-1. Splash Screen (animated, 2-second display)
-2. Onboarding (personalized with founder info)
-3. Login/Register
-4. Dashboard (with charts)
-5. Projects list
-6. Tasks list
-7. Media capture
-8. AI Insights
-9. More menu
-10. Marketplace
-11. Reports (6 report types)
-12. Settings
-13. Chat
-14. Edit Profile
+- ✅ Animated splash screen
 
 ---
 
 ## Patent Documentation Created
 
-Three detailed, patent-ready technical documents have been created:
+Three detailed, patent-ready technical documents:
 
-### 1. Predictive Risk Scoring Algorithm (PRSA)
-- `/app/docs/patents/01_PREDICTIVE_RISK_SCORING_ALGORITHM.md`
-- Temporal Risk Decay Function (TRDF)
-- Contextual Weight Adjustment Matrix (CWAM)
-- Multi-dimensional risk analysis
+1. **Predictive Risk Scoring Algorithm (PRSA)** - `/app/docs/patents/01_PREDICTIVE_RISK_SCORING_ALGORITHM.md`
+2. **Data Normalization Engine (DNE)** - `/app/docs/patents/02_DATA_NORMALIZATION_ENGINE.md`
+3. **Workflow Optimization Engine (WOE)** - `/app/docs/patents/03_WORKFLOW_OPTIMIZATION_ENGINE.md`
 
-### 2. Data Normalization Engine (DNE)
-- `/app/docs/patents/02_DATA_NORMALIZATION_ENGINE.md`
-- Semantic Construction Ontology (SCO)
-- Adaptive Schema Mapping (ASM)
-- Confidence-Weighted Data Fusion (CWDF)
+---
 
-### 3. Workflow Optimization Engine (WOE)
-- `/app/docs/patents/03_WORKFLOW_OPTIMIZATION_ENGINE.md`
-- Dynamic Constraint Propagation (DCP)
-- Multi-Objective Resource Leveling (MORL)
-- Adaptive Learning Feedback Loops (ALFL)
+## New Files Created This Session
+
+### Frontend
+- `/app/frontend/services/SensorService.ts` - Comprehensive sensor monitoring service
+- `/app/frontend/app/project-wizard.tsx` - AI-assisted project creation wizard
+- `/app/frontend/app/safety-monitor.tsx` - Safety monitoring dashboard
+- `/app/frontend/components/Charts.tsx` - Web-compatible chart components
+
+### Backend Endpoints Added
+- `POST /api/ai/budget-estimate` - AI budget estimation
+- `POST /api/safety/sensor-data` - Sensor data submission
+- `POST /api/safety/alert` - Safety alert submission
+- `GET /api/safety/alerts` - Get safety alerts
+- `PUT /api/safety/alerts/{id}/acknowledge` - Acknowledge alerts
 
 ---
 
 ## Technical Architecture
 
-### Frontend
-- **Framework:** React Native + Expo
-- **State Management:** Zustand + React Query
-- **Navigation:** Expo Router
-- **UI Components:** Custom + LinearGradient
-- **Charts:** Custom web-compatible components
+### Sensor Integration (SensorService.ts)
+```typescript
+// Available Sensors Used:
+- Accelerometer (10Hz) - Fall/impact detection
+- Gyroscope (10Hz) - Rotation tracking
+- Barometer - Altitude/pressure monitoring
+- GPS - Location tracking, geofencing
+- Pedometer - Step counting
+- Device Motion - Orientation
 
-### Backend
-- **Framework:** FastAPI
-- **Database:** MongoDB (motor async driver)
-- **Authentication:** JWT
-- **AI Integration:** emergentintegrations library (OpenAI GPT-5.2)
+// Safety Features:
+- Fall Detection: Free-fall + impact pattern recognition
+- Impact Threshold: 35 m/s² (severe impact alert)
+- Stillness Detection: 5-minute inactivity alerts
+- Rapid Descent: 3+ m/s altitude change alerts
+```
 
-### APIs
-- `/api/health` - Health check
-- `/api/auth/*` - Authentication
-- `/api/projects/*` - Project CRUD
-- `/api/tasks/*` - Task CRUD
-- `/api/media/*` - Media management
-- `/api/ai/*` - AI features
-- `/api/reports/*` - Report generation
-- `/api/chat/*` - Chat functionality
+### Project Wizard Flow
+1. **Basics** - Name, description, project type
+2. **Location** - GPS or manual address entry
+3. **Timeline** - Start/end date selection
+4. **Budget** - AI estimation or manual entry
+5. **Team** - Owner assignment
+6. **Review** - Confirmation and creation
+
+---
+
+## API Endpoints Summary
+
+### Authentication
+- `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`
+
+### Projects & Tasks
+- CRUD operations at `/api/projects/*`, `/api/tasks/*`
+
+### AI & Safety
+- `POST /api/ai/budget-estimate` - Budget estimation
+- `POST /api/safety/sensor-data` - Sensor data
+- `POST /api/safety/alert` - Submit safety alert
+- `GET /api/safety/alerts` - Get alerts
 
 ---
 
@@ -165,33 +160,21 @@ JWT_SECRET=buildtrack_super_secret_key_change_in_production_2025
 
 ---
 
-## Known Issues (Resolved in This Session)
-
-1. ✅ Server errors (syntax, imports) - FIXED
-2. ✅ Navigation bug on initial login - FIXED (proper state management)
-3. ✅ Splash screen not integrated - FIXED (now shows animated splash)
-4. ✅ Dashboard charts removed - FIXED (new web-compatible charts added)
-5. ✅ Health endpoint missing - FIXED
-6. ✅ Onboarding showing placeholder name - FIXED (now shows Peter Martinez)
-7. ✅ OpenWeather API key invalid - VERIFIED WORKING
-
----
-
 ## Future Enhancements (Backlog)
 
 ### P1 - High Priority
-- [ ] Gantt chart visualization for project timelines
-- [ ] Real-time chat with WebSocket integration
-- [ ] Push notifications
+- [ ] Wearable device integration (Apple Watch, Galaxy Watch via HealthKit/Samsung Health)
+- [ ] Real-time WebSocket chat
+- [ ] Push notifications for safety alerts
 
 ### P2 - Medium Priority
+- [ ] Gantt chart visualization
 - [ ] Full offline sync with SQLite
-- [ ] Admin panel for role management
-- [ ] Document upload and storage
+- [ ] Voice commands for hands-free operation
 
 ### P3 - Lower Priority
-- [ ] QuickBooks integration
-- [ ] Procore data sync
+- [ ] QuickBooks/Procore integration
+- [ ] Admin panel for role management
 - [ ] Mobile app deployment (App Store / Play Store)
 
 ---
@@ -207,10 +190,11 @@ JWT_SECRET=buildtrack_super_secret_key_change_in_production_2025
 # Health check
 curl https://workflow-engine-83.preview.emergentagent.com/api/health
 
-# Login
-curl -X POST https://workflow-engine-83.preview.emergentagent.com/api/auth/login \
+# AI Budget Estimate
+curl -X POST https://workflow-engine-83.preview.emergentagent.com/api/ai/budget-estimate \
   -H "Content-Type: application/json" \
-  -d '{"email":"demo@buildtrack.com","password":"demo123"}'
+  -H "Authorization: Bearer <token>" \
+  -d '{"projectType":"commercial","squareFootage":5000,"location":{"city":"Houston","state":"TX"}}'
 ```
 
 ---
@@ -219,6 +203,7 @@ curl -X POST https://workflow-engine-83.preview.emergentagent.com/api/auth/login
 
 | Date | Version | Changes |
 |------|---------|---------|
+| Mar 3, 2026 | 1.1.0 | Added sensor integration, safety monitoring, project wizard |
 | Mar 3, 2026 | 1.0.0 | Full app implementation, patent docs, bug fixes |
 | Feb 6, 2026 | 0.9.0 | Initial MVP |
 

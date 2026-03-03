@@ -314,6 +314,38 @@ class ApiService {
     });
     return response.data;
   }
+
+  // AI Budget Estimation
+  async getAIBudgetEstimate(data: {
+    projectType: string;
+    squareFootage: number;
+    location: { city?: string; state?: string };
+    timeline?: { startDate?: string; endDate?: string };
+  }) {
+    const response = await this.api.post('/ai/budget-estimate', data);
+    return response.data;
+  }
+
+  // Safety Monitoring
+  async submitSensorData(data: any) {
+    const response = await this.api.post('/safety/sensor-data', data);
+    return response.data;
+  }
+
+  async submitSafetyAlert(alertData: any) {
+    const response = await this.api.post('/safety/alert', alertData);
+    return response.data;
+  }
+
+  async getSafetyAlerts() {
+    const response = await this.api.get('/safety/alerts');
+    return response.data;
+  }
+
+  async acknowledgeSafetyAlert(alertId: string) {
+    const response = await this.api.put(`/safety/alerts/${alertId}/acknowledge`);
+    return response.data;
+  }
 }
 
 export default new ApiService();

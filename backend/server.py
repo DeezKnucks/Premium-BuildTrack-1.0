@@ -1042,6 +1042,161 @@ async def get_all_feedback(current_user: dict = Depends(get_current_user)):
     feedback_items = await db.feedback.find({}).sort("created_at", -1).to_list(1000)
     return [serialize_doc(f) for f in feedback_items]
 
+# ============ AI BUDGET ESTIMATION ============
+
+@api_router.post("/ai/budget-estimate")
+async def get_ai_budget_estimate(data: dict, current_user: dict = Depends(get_current_user)):
+    """Get AI-powered budget estimation for a project"""
+    project_type = data.get("projectType", "commercial")
+    square_footage = data.get("squareFootage", 5000)
+    location = data.get("location", {})
+    timeline = data.get("timeline", {})
+    
+    # Base cost per square foot by project type
+    BASE_COSTS = {
+        "residential": 150,
+        "commercial": 200,
+        "industrial": 120,
+        "renovation": 100,
+        "infrastructure": 250,
+    }
+    
+    # Regional cost adjustments (simplified)
+    REGIONAL_MULTIPLIERS = {
+        "CA": 1.35,  # California - high cost
+        "NY": 1.30,  # New York - high cost
+        "TX": 0.95,  # Texas - moderate
+        "FL": 1.05,  # Florida - moderate
+        "WA": 1.20,  # Washington - higher
+        "default": 1.0
+    }
+    
+    base_cost = BASE_COSTS.get(project_type, 150)
+    regional_multiplier = REGIONAL_MULTIPLIERS.get(location.get("state", "default"), 1.0)
+    
+    # Calculate base estimate
+    base_estimate = square_footage * base_cost * regional_multiplier
+    
+    # Add contingency (15% for new construction, 20% for renovation)
+    contingency_rate = 0.20 if project_type == "renovation" else 0.15
+    contingency = base_estimate * contingency_rate
+    
+    # Add permits and fees (approximately 3-5%)
+    permits_fees = base_estimate * 0.04
+    
+    # Calculate total
+    total_estimate = base_estimate + contingency + permits_fees
+    
+    # Generate breakdown
+    breakdown = f"""Budget Breakdown:
+- Base Construction: ${base_estimate:,.0f}
+- Contingency ({int(contingency_rate*100)}%): ${contingency:,.0f}
+- Permits & Fees (4%): ${permits_fees:,.0f}
+
+Estimate based on {project_type} project in {location.get('city', 'your area')}, {location.get('state', 'US')}
+at ${base_cost * regional_multiplier:.0f}/sq ft."""
+
+    return {
+        "estimatedBudget": round(total_estimate, -3),  # Round to nearest thousand
+        "breakdown": breakdown,
+        "confidence": 0.85,
+        "factors": {
+            "baseCostPerSqFt": base_cost,
+            "regionalMultiplier": regional_multiplier,
+            "contingencyRate": contingency_rate,
+        }
+    }
+
+# ============ SENSOR DATA / SAFETY MONITORING ============
+
+@api_router.post("/safety/sensor-data")
+async def submit_sensor_data(data: dict, current_user: dict = Depends(get_current_user)):
+    """Submit sensor data from mobile device for AI safety analysis"""
+    sensor_doc = {
+        "user_id": str(current_user["_id"]),
+        "timestamp": datetime.utcnow(),
+        "device_info": data.get("deviceInfo"),
+        "location": data.get("location"),
+        "environmental": data.get("environmental"),
+        "activity_metrics": data.get("activityMetrics"),
+        "motion_data": data.get("currentMotion"),
+    }
+    
+    await db.sensor_logs.insert_one(sensor_doc)
+    
+    # Analyze for safety concerns using AI
+    alerts = []
+    
+    # Check for concerning patterns
+    activity = data.get("activityMetrics", {})
+    if activity.get("lastActivityType") == "stationary" and activity.get("restMinutes", 0) > 10:
+        alerts.append({
+            "type": "prolonged_stillness_warning",
+            "severity": "low",
+            "message": "Extended period of inactivity detected"
+        })
+    
+    return {
+        "status": "recorded",
+        "alerts": alerts,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+@api_router.post("/safety/alert")
+async def submit_safety_alert(alert_data: dict, current_user: dict = Depends(get_current_user)):
+    """Submit a safety alert from the mobile device"""
+    alert_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": str(current_user["_id"]),
+        "user_name": current_user.get("full_name", "Unknown"),
+        "alert_type": alert_data.get("type"),
+        "severity": alert_data.get("severity"),
+        "message": alert_data.get("message"),
+        "location": alert_data.get("location"),
+        "device_data": alert_data.get("data"),
+        "created_at": datetime.utcnow(),
+        "acknowledged": False,
+        "acknowledged_by": None,
+        "acknowledged_at": None,
+    }
+    
+    await db.safety_alerts.insert_one(alert_doc)
+    
+    # In production: Send push notifications to supervisors/safety team
+    # In production: Trigger emergency response if severity is critical
+    
+    return {"status": "alert_recorded", "alert_id": alert_doc["id"]}
+
+@api_router.get("/safety/alerts")
+async def get_safety_alerts(current_user: dict = Depends(get_current_user)):
+    """Get recent safety alerts"""
+    # Get alerts for this user or all if admin/supervisor
+    query = {}
+    if current_user.get("role") not in ["admin", "supervisor"]:
+        query["user_id"] = str(current_user["_id"])
+    
+    alerts = await db.safety_alerts.find(query).sort("created_at", -1).limit(50).to_list(50)
+    return [serialize_doc(a) for a in alerts]
+
+@api_router.put("/safety/alerts/{alert_id}/acknowledge")
+async def acknowledge_safety_alert(alert_id: str, current_user: dict = Depends(get_current_user)):
+    """Acknowledge a safety alert"""
+    result = await db.safety_alerts.update_one(
+        {"id": alert_id},
+        {
+            "$set": {
+                "acknowledged": True,
+                "acknowledged_by": str(current_user["_id"]),
+                "acknowledged_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    return {"status": "acknowledged"}
+
 # ============ ROOT ENDPOINT ============
 
 @api_router.get("/")
