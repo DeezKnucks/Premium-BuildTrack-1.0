@@ -614,6 +614,298 @@ async def scout_vendors(requirements: dict, current_user: dict = Depends(get_cur
     result = await ai_service.scout_vendors(requirements)
     return {"recommended_vendors": result}
 
+# ============ REPORTS ENDPOINTS ============
+
+@api_router.get("/reports/budget/{project_id}")
+async def get_budget_report(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate detailed budget report for a project"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    tasks = await tasks_collection.find({"project_id": project_id}).to_list(1000)
+    
+    # Calculate budget breakdown by category
+    total_budget = project.get('budget', 0)
+    spent = sum(t.get('actual_cost', 0) for t in tasks)
+    
+    categories = {
+        "Labor": {"budget": total_budget * 0.4, "spent": spent * 0.35, "items": []},
+        "Materials": {"budget": total_budget * 0.35, "spent": spent * 0.40, "items": []},
+        "Equipment": {"budget": total_budget * 0.15, "spent": spent * 0.15, "items": []},
+        "Permits & Fees": {"budget": total_budget * 0.05, "spent": spent * 0.05, "items": []},
+        "Contingency": {"budget": total_budget * 0.05, "spent": spent * 0.05, "items": []}
+    }
+    
+    # Monthly spending trend (mock data)
+    monthly_trend = [
+        {"month": "Jan", "planned": total_budget * 0.1, "actual": spent * 0.08},
+        {"month": "Feb", "planned": total_budget * 0.15, "actual": spent * 0.12},
+        {"month": "Mar", "planned": total_budget * 0.2, "actual": spent * 0.18},
+        {"month": "Apr", "planned": total_budget * 0.25, "actual": spent * 0.22},
+        {"month": "May", "planned": total_budget * 0.3, "actual": spent * 0.28},
+    ]
+    
+    return {
+        "project_name": project.get('name'),
+        "total_budget": total_budget,
+        "total_spent": spent,
+        "remaining": total_budget - spent,
+        "variance_percentage": ((spent - total_budget) / total_budget * 100) if total_budget > 0 else 0,
+        "categories": categories,
+        "monthly_trend": monthly_trend,
+        "forecast": {
+            "projected_total": spent * 1.2,
+            "projected_variance": ((spent * 1.2) - total_budget) / total_budget * 100 if total_budget > 0 else 0,
+            "recommendation": "On track" if spent <= total_budget else "Review spending in Materials category"
+        },
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+@api_router.get("/reports/timeline/{project_id}")
+async def get_timeline_report(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate timeline/schedule report for a project"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    tasks = await tasks_collection.find({"project_id": project_id}).to_list(1000)
+    
+    completed = len([t for t in tasks if t.get('status') == 'completed'])
+    in_progress = len([t for t in tasks if t.get('status') == 'in_progress'])
+    pending = len([t for t in tasks if t.get('status') == 'pending'])
+    blocked = len([t for t in tasks if t.get('status') == 'blocked'])
+    
+    start_date = datetime.fromisoformat(project.get('start_date', datetime.utcnow().isoformat()).replace('Z', ''))
+    end_date = datetime.fromisoformat(project.get('end_date', (datetime.utcnow() + timedelta(days=90)).isoformat()).replace('Z', ''))
+    
+    total_days = (end_date - start_date).days
+    elapsed_days = (datetime.utcnow() - start_date).days
+    progress = (elapsed_days / total_days * 100) if total_days > 0 else 0
+    
+    # Milestones
+    milestones = [
+        {"name": "Project Kickoff", "date": start_date.isoformat(), "status": "completed"},
+        {"name": "Foundation Complete", "date": (start_date + timedelta(days=int(total_days*0.2))).isoformat(), "status": "completed" if progress > 20 else "pending"},
+        {"name": "Structural Framework", "date": (start_date + timedelta(days=int(total_days*0.4))).isoformat(), "status": "completed" if progress > 40 else "in_progress" if progress > 30 else "pending"},
+        {"name": "MEP Installation", "date": (start_date + timedelta(days=int(total_days*0.6))).isoformat(), "status": "completed" if progress > 60 else "pending"},
+        {"name": "Interior Finishing", "date": (start_date + timedelta(days=int(total_days*0.8))).isoformat(), "status": "pending"},
+        {"name": "Final Inspection", "date": end_date.isoformat(), "status": "pending"},
+    ]
+    
+    return {
+        "project_name": project.get('name'),
+        "start_date": project.get('start_date'),
+        "end_date": project.get('end_date'),
+        "total_days": total_days,
+        "elapsed_days": elapsed_days,
+        "remaining_days": total_days - elapsed_days,
+        "schedule_progress": min(progress, 100),
+        "task_summary": {
+            "total": len(tasks),
+            "completed": completed,
+            "in_progress": in_progress,
+            "pending": pending,
+            "blocked": blocked
+        },
+        "milestones": milestones,
+        "on_schedule": progress <= (completed / len(tasks) * 100) if tasks else True,
+        "projected_completion": (start_date + timedelta(days=int(total_days * 1.1))).isoformat() if blocked > 0 else end_date.isoformat(),
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+@api_router.get("/reports/team/{project_id}")
+async def get_team_report(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate team productivity report"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    tasks = await tasks_collection.find({"project_id": project_id}).to_list(1000)
+    team_members = project.get('team_members', [])
+    
+    # Get team member details
+    team_stats = []
+    for member_id in team_members[:10]:  # Limit to 10 members
+        user = await users_collection.find_one({"id": member_id})
+        if user:
+            member_tasks = [t for t in tasks if member_id in t.get('assigned_to', [])]
+            completed_tasks = len([t for t in member_tasks if t.get('status') == 'completed'])
+            team_stats.append({
+                "id": member_id,
+                "name": user.get('full_name', 'Unknown'),
+                "role": user.get('role', 'crew'),
+                "tasks_assigned": len(member_tasks),
+                "tasks_completed": completed_tasks,
+                "completion_rate": (completed_tasks / len(member_tasks) * 100) if member_tasks else 0,
+                "hours_logged": len(member_tasks) * 8,  # Mock hours
+                "productivity_score": min(100, (completed_tasks / max(len(member_tasks), 1)) * 100 + 20)
+            })
+    
+    return {
+        "project_name": project.get('name'),
+        "total_team_members": len(team_members),
+        "team_stats": team_stats,
+        "overall_productivity": sum(m['productivity_score'] for m in team_stats) / len(team_stats) if team_stats else 0,
+        "total_hours_logged": sum(m['hours_logged'] for m in team_stats),
+        "top_performers": sorted(team_stats, key=lambda x: x['productivity_score'], reverse=True)[:3],
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+@api_router.get("/reports/materials/{project_id}")
+async def get_materials_report(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate materials/inventory report"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    budget = project.get('budget', 100000)
+    
+    # Mock materials data
+    materials = [
+        {"name": "Concrete (cubic yards)", "ordered": 500, "delivered": 450, "used": 400, "unit_cost": 150, "status": "in_stock"},
+        {"name": "Rebar (tons)", "ordered": 50, "delivered": 45, "used": 40, "unit_cost": 800, "status": "in_stock"},
+        {"name": "Lumber (board feet)", "ordered": 10000, "delivered": 8000, "used": 7500, "unit_cost": 3, "status": "low_stock"},
+        {"name": "Electrical Wire (feet)", "ordered": 5000, "delivered": 5000, "used": 3500, "unit_cost": 2, "status": "in_stock"},
+        {"name": "Plumbing Pipes (feet)", "ordered": 2000, "delivered": 2000, "used": 1800, "unit_cost": 5, "status": "in_stock"},
+        {"name": "Drywall (sheets)", "ordered": 500, "delivered": 300, "used": 200, "unit_cost": 15, "status": "pending_delivery"},
+        {"name": "Roofing Materials (sq ft)", "ordered": 3000, "delivered": 0, "used": 0, "unit_cost": 4, "status": "ordered"},
+    ]
+    
+    total_cost = sum(m['used'] * m['unit_cost'] for m in materials)
+    
+    return {
+        "project_name": project.get('name'),
+        "materials": materials,
+        "summary": {
+            "total_items": len(materials),
+            "in_stock": len([m for m in materials if m['status'] == 'in_stock']),
+            "low_stock": len([m for m in materials if m['status'] == 'low_stock']),
+            "pending": len([m for m in materials if m['status'] in ['pending_delivery', 'ordered']])
+        },
+        "total_materials_cost": total_cost,
+        "budget_allocation": budget * 0.35,
+        "variance": total_cost - (budget * 0.35),
+        "alerts": [
+            {"item": "Lumber", "message": "Stock running low - reorder recommended", "severity": "warning"},
+            {"item": "Drywall", "message": "Delivery pending - ETA 3 days", "severity": "info"}
+        ],
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+@api_router.get("/reports/safety/{project_id}")
+async def get_safety_report(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate safety/incident report"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Mock safety data
+    return {
+        "project_name": project.get('name'),
+        "reporting_period": "Last 30 days",
+        "incident_summary": {
+            "total_incidents": 3,
+            "near_misses": 5,
+            "first_aid_cases": 2,
+            "recordable_incidents": 1,
+            "lost_time_incidents": 0
+        },
+        "incidents": [
+            {"date": "2025-01-15", "type": "Near Miss", "description": "Unsecured ladder reported", "severity": "low", "status": "resolved"},
+            {"date": "2025-01-20", "type": "First Aid", "description": "Minor cut from material handling", "severity": "low", "status": "resolved"},
+            {"date": "2025-01-25", "type": "Near Miss", "description": "Tool dropped from height", "severity": "medium", "status": "under_review"}
+        ],
+        "safety_metrics": {
+            "days_without_incident": 12,
+            "safety_training_completion": 95,
+            "ppe_compliance": 98,
+            "safety_inspection_score": 92
+        },
+        "compliance_status": {
+            "osha_compliant": True,
+            "last_inspection_date": "2025-01-10",
+            "next_inspection_due": "2025-04-10",
+            "open_citations": 0
+        },
+        "recommendations": [
+            "Schedule refresher training on ladder safety",
+            "Review material handling procedures",
+            "Conduct tool tethering awareness session"
+        ],
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+@api_router.get("/reports/sustainability/{project_id}")
+async def get_sustainability_report(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate sustainability/environmental report"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    return {
+        "project_name": project.get('name'),
+        "environmental_metrics": {
+            "carbon_footprint_tons": 125.5,
+            "energy_usage_kwh": 45000,
+            "water_usage_gallons": 125000,
+            "waste_generated_tons": 85,
+            "waste_diverted_percentage": 72
+        },
+        "certifications": {
+            "leed_target": "Gold",
+            "current_points": 52,
+            "required_points": 60,
+            "categories": [
+                {"name": "Energy & Atmosphere", "points": 18, "max": 33},
+                {"name": "Water Efficiency", "points": 8, "max": 10},
+                {"name": "Materials & Resources", "points": 10, "max": 13},
+                {"name": "Indoor Environmental Quality", "points": 12, "max": 16},
+                {"name": "Innovation", "points": 4, "max": 6}
+            ]
+        },
+        "recycling_summary": {
+            "concrete": {"recycled": 85, "unit": "tons"},
+            "metal": {"recycled": 12, "unit": "tons"},
+            "wood": {"recycled": 8, "unit": "tons"},
+            "cardboard": {"recycled": 2, "unit": "tons"}
+        },
+        "green_initiatives": [
+            {"name": "Solar Panel Installation", "status": "planned", "impact": "30% energy reduction"},
+            {"name": "Rainwater Harvesting", "status": "in_progress", "impact": "40% water savings"},
+            {"name": "LED Lighting Throughout", "status": "completed", "impact": "50% lighting energy savings"}
+        ],
+        "generated_at": datetime.utcnow().isoformat()
+    }
+
+# ============ USER PROFILE ENDPOINTS ============
+
+@api_router.put("/users/profile")
+async def update_user_profile(profile_data: dict, current_user: dict = Depends(get_current_user)):
+    """Update current user's profile"""
+    allowed_fields = ['full_name', 'phone', 'company', 'job_title', 'avatar_url', 'notification_preferences']
+    update_data = {k: v for k, v in profile_data.items() if k in allowed_fields}
+    update_data['updated_at'] = datetime.utcnow()
+    
+    result = await users_collection.update_one(
+        {"id": current_user['user_id']},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    updated_user = await users_collection.find_one({"id": current_user['user_id']})
+    return serialize_doc(updated_user)
+
+@api_router.get("/users/profile")
+async def get_user_profile(current_user: dict = Depends(get_current_user)):
+    """Get current user's profile"""
+    user = await users_collection.find_one({"id": current_user['user_id']})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return serialize_doc(user)
+
 # ============ WEATHER ENDPOINT ============
 
 @api_router.get("/weather/{project_id}")
