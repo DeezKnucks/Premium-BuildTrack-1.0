@@ -189,15 +189,16 @@ export default function OnboardingScreen() {
             ]}
           >
             <View style={styles.heroSection}>
-              {/* Headshot Placeholder */}
+              {/* Founder Headshot */}
               <View style={styles.headshotContainer}>
-                <View style={[styles.headshot, { backgroundColor: colors.card }]}>
-                  <MaterialIcons name="person" size={80} color="#FF6B35" />
-                </View>
+                <Image
+                  source={{ uri: 'https://customer-assets.emergentagent.com/job_a6cef89f-cc2b-4496-841c-2a8180c9c2ab/artifacts/eymvyfoi_1000088765.jpg' }}
+                  style={styles.headshotImage}
+                />
               </View>
 
               <Text style={[styles.heroTitle, { color: colors.text }]}>
-                Hi, I'm [Your Name]
+                Hi, I'm Peter Martinez
               </Text>
               <Text style={[styles.heroSubtitle, { color: '#FF6B35' }]}>Founder of BuildTrack</Text>
 
@@ -456,6 +457,13 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 4,
+    borderColor: '#FF6B35',
+  },
+  headshotImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     borderWidth: 4,
     borderColor: '#FF6B35',
   },
