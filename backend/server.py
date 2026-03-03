@@ -107,6 +107,18 @@ async def get_weather_forecast(lat: float, lng: float) -> dict:
         logger.error(f"Weather API error: {str(e)}")
         return {"error": str(e)}
 
+# ============ HEALTH ENDPOINT ============
+
+@api_router.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "BuildTrack API",
+        "version": "1.0.0",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 # ============ AUTH ENDPOINTS ============
 
 @api_router.post("/auth/register", response_model=User)

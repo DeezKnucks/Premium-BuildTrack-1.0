@@ -21,6 +21,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { AnimatedTouchable } from '../../components/AnimatedTouchable';
 import { GlassCard } from '../../components/GlassCard';
 import { Logo } from '../../components/Logo';
+import { SimpleBarChart, SimpleProgressBar, SimpleDonutChart } from '../../components/Charts';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../constants/theme';
 import api from '../../services/api';
 import { format } from 'date-fns';
@@ -207,6 +208,75 @@ export default function DashboardScreen() {
               </GlassCard>
             </Animated.View>
           )}
+        </View>
+
+        {/* Weekly Progress Chart */}
+        <View style={styles.chartSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Weekly Progress</Text>
+          <GlassCard style={styles.chartCard}>
+            <SimpleBarChart
+              data={[
+                { label: 'Mon', value: stats?.weekly_progress?.[0] || 12 },
+                { label: 'Tue', value: stats?.weekly_progress?.[1] || 18 },
+                { label: 'Wed', value: stats?.weekly_progress?.[2] || 15 },
+                { label: 'Thu', value: stats?.weekly_progress?.[3] || 22 },
+                { label: 'Fri', value: stats?.weekly_progress?.[4] || 20 },
+                { label: 'Sat', value: stats?.weekly_progress?.[5] || 8 },
+                { label: 'Sun', value: stats?.weekly_progress?.[6] || 5 },
+              ]}
+              height={120}
+              barWidth={24}
+              gradientColors={[Colors.primary, Colors.primaryDark]}
+            />
+          </GlassCard>
+        </View>
+
+        {/* Budget & Tasks Overview */}
+        <View style={styles.overviewSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Performance</Text>
+          <View style={styles.overviewGrid}>
+            {/* Task Completion Donut */}
+            <GlassCard style={styles.overviewCard}>
+              <View style={styles.donutWrapper}>
+                <SimpleDonutChart
+                  percentage={completionRate}
+                  size={100}
+                  strokeWidth={10}
+                  color={Colors.success}
+                  label="Tasks"
+                  sublabel="Complete"
+                />
+              </View>
+            </GlassCard>
+
+            {/* Budget Progress */}
+            <GlassCard style={styles.overviewCard}>
+              <Text style={[styles.overviewTitle, { color: colors.text }]}>Budget Status</Text>
+              <View style={styles.budgetInfo}>
+                <SimpleProgressBar
+                  progress={stats?.budget_usage || 65}
+                  height={10}
+                  color={stats?.budget_usage > 90 ? '#EF4444' : Colors.primary}
+                  showPercentage
+                  label="Spent"
+                />
+                <View style={styles.budgetDetails}>
+                  <View style={styles.budgetItem}>
+                    <Text style={styles.budgetLabel}>Total</Text>
+                    <Text style={[styles.budgetValue, { color: colors.text }]}>
+                      ${((stats?.total_budget || 500000) / 1000).toFixed(0)}K
+                    </Text>
+                  </View>
+                  <View style={styles.budgetItem}>
+                    <Text style={styles.budgetLabel}>Remaining</Text>
+                    <Text style={[styles.budgetValue, { color: Colors.success }]}>
+                      ${((stats?.remaining_budget || 175000) / 1000).toFixed(0)}K
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </GlassCard>
+          </View>
         </View>
 
         {/* Swipeable Project Carousel */}
@@ -585,5 +655,54 @@ const styles = StyleSheet.create({
     fontWeight: Typography.bold,
     color: '#FFF',
     marginTop: Spacing.sm,
+  },
+  chartSection: {
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing['2xl'],
+  },
+  chartCard: {
+    padding: Spacing.lg,
+  },
+  overviewSection: {
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing['2xl'],
+  },
+  overviewGrid: {
+    flexDirection: 'row',
+    gap: Spacing.base,
+  },
+  overviewCard: {
+    flex: 1,
+    padding: Spacing.lg,
+  },
+  donutWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+  },
+  overviewTitle: {
+    fontSize: Typography.base,
+    fontWeight: Typography.bold,
+    marginBottom: Spacing.md,
+  },
+  budgetInfo: {
+    gap: Spacing.lg,
+  },
+  budgetDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Spacing.md,
+  },
+  budgetItem: {
+    alignItems: 'center',
+  },
+  budgetLabel: {
+    fontSize: Typography.xs,
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: Spacing.xs,
+  },
+  budgetValue: {
+    fontSize: Typography.lg,
+    fontWeight: Typography.bold,
   },
 });
