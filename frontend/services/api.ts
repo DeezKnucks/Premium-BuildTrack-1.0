@@ -251,6 +251,69 @@ class ApiService {
     const response = await this.api.get('/dashboard');
     return response.data;
   }
+
+  // Reports
+  async getBudgetReport(projectId: string) {
+    const response = await this.api.get(`/reports/budget/${projectId}`);
+    return response.data;
+  }
+
+  async getTimelineReport(projectId: string) {
+    const response = await this.api.get(`/reports/timeline/${projectId}`);
+    return response.data;
+  }
+
+  async getTeamReport(projectId: string) {
+    const response = await this.api.get(`/reports/team/${projectId}`);
+    return response.data;
+  }
+
+  async getMaterialsReport(projectId: string) {
+    const response = await this.api.get(`/reports/materials/${projectId}`);
+    return response.data;
+  }
+
+  async getSafetyReport(projectId: string) {
+    const response = await this.api.get(`/reports/safety/${projectId}`);
+    return response.data;
+  }
+
+  async getSustainabilityReport(projectId: string) {
+    const response = await this.api.get(`/reports/sustainability/${projectId}`);
+    return response.data;
+  }
+
+  // User Profile
+  async getUserProfile() {
+    const response = await this.api.get('/users/profile');
+    return response.data;
+  }
+
+  async updateUserProfile(data: any) {
+    const response = await this.api.put('/users/profile', data);
+    return response.data;
+  }
+
+  // Chat - updated methods
+  async getChatRooms(projectId?: string) {
+    const response = await this.api.get('/chat/rooms', {
+      params: projectId ? { project_id: projectId } : {},
+    });
+    return response.data;
+  }
+
+  async createChatRoom(data: any) {
+    const response = await this.api.post('/chat/rooms', data);
+    return response.data;
+  }
+
+  async sendMessage(roomId: string, content: string) {
+    const response = await this.api.post('/chat/messages', {
+      room_id: roomId,
+      content: content,
+    });
+    return response.data;
+  }
 }
 
 export default new ApiService();
