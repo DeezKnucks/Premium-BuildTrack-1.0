@@ -67,8 +67,7 @@ export default function MoreScreen() {
             <MenuItem
               icon="person"
               title="Edit Profile"
-              onPress={() => {}}
-              badge="Coming Soon"
+              onPress={() => router.push('/edit-profile')}
               colors={colors}
             />
             <MenuItem
@@ -80,8 +79,7 @@ export default function MoreScreen() {
             <MenuItem
               icon="lock"
               title="Privacy & Security"
-              onPress={() => {}}
-              badge="Coming Soon"
+              onPress={() => router.push('/settings')}
               colors={colors}
             />
           </GlassCard>
@@ -100,8 +98,7 @@ export default function MoreScreen() {
             <MenuItem
               icon="chat"
               title="Team Chat"
-              onPress={() => {}}
-              badge="Coming Soon"
+              onPress={() => router.push('/chat')}
               colors={colors}
             />
             <MenuItem
