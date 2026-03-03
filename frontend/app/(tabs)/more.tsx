@@ -130,6 +130,41 @@ export default function MoreScreen() {
           </GlassCard>
         </View>
 
+        {/* Device & Integrations Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>INTEGRATIONS</Text>
+          <GlassCard>
+            <MenuItem
+              icon="watch"
+              title="Wearable Devices"
+              subtitle="Apple Watch, Galaxy Watch"
+              onPress={() => router.push('/wearables')}
+              colors={colors}
+            />
+            <MenuItem
+              icon="record-voice-over"
+              title="Voice Commands"
+              subtitle="Hands-free operation"
+              onPress={() => router.push('/voice-commands')}
+              colors={colors}
+            />
+            <MenuItem
+              icon="cloud-sync"
+              title="Offline Sync"
+              subtitle="Manage offline data"
+              onPress={() => router.push('/offline-sync')}
+              colors={colors}
+            />
+            <MenuItem
+              icon="notifications"
+              title="Notifications"
+              subtitle="Push notification settings"
+              onPress={() => router.push('/notification-settings')}
+              colors={colors}
+            />
+          </GlassCard>
+        </View>
+
         {/* Support Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>SUPPORT</Text>
