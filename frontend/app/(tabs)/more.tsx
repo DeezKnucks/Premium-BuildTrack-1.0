@@ -72,10 +72,9 @@ export default function MoreScreen() {
               colors={colors}
             />
             <MenuItem
-              icon="notifications"
-              title="Notifications"
-              onPress={() => {}}
-              badge="Coming Soon"
+              icon="settings"
+              title="Settings"
+              onPress={() => router.push('/settings')}
               colors={colors}
             />
             <MenuItem
