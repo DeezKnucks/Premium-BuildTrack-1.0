@@ -360,3 +360,36 @@ class FinancialSummary(BaseModel):
     net_profit: float
     outstanding_invoices: float
     paid_invoices: float
+
+# Video Call Models
+class CallType(str, Enum):
+    ONE_ON_ONE = "one_on_one"
+    GROUP = "group"
+    CONFERENCE = "conference"
+
+class CallStatus(str, Enum):
+    SCHEDULED = "scheduled"
+    ACTIVE = "active"
+    ENDED = "ended"
+    CANCELLED = "cancelled"
+
+class VideoCallBase(BaseModel):
+    project_id: Optional[str] = None
+    call_type: CallType
+    title: str
+    scheduled_time: Optional[datetime] = None
+    duration_minutes: Optional[int] = None
+    participants: List[str] = []  # user IDs
+    meeting_link: Optional[str] = None
+    notes: Optional[str] = None
+
+class VideoCallCreate(VideoCallBase):
+    pass
+
+class VideoCall(VideoCallBase):
+    id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    status: CallStatus = CallStatus.SCHEDULED
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None

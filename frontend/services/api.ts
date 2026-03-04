@@ -385,6 +385,45 @@ class ApiService {
     const response = await this.api.get(`/gantt/${projectId}`);
     return response.data;
   }
+
+  // Video calls
+  async createVideoCall(data: any) {
+    const response = await this.api.post('/video-calls', data);
+    return response.data;
+  }
+
+  async getVideoCalls(projectId?: string, status?: string) {
+    const params: any = {};
+    if (projectId) params.project_id = projectId;
+    if (status) params.status = status;
+    const response = await this.api.get('/video-calls', { params });
+    return response.data;
+  }
+
+  async getVideoCall(callId: string) {
+    const response = await this.api.get(`/video-calls/${callId}`);
+    return response.data;
+  }
+
+  async startVideoCall(callId: string) {
+    const response = await this.api.put(`/video-calls/${callId}/start`);
+    return response.data;
+  }
+
+  async endVideoCall(callId: string) {
+    const response = await this.api.put(`/video-calls/${callId}/end`);
+    return response.data;
+  }
+
+  async cancelVideoCall(callId: string) {
+    const response = await this.api.delete(`/video-calls/${callId}`);
+    return response.data;
+  }
+
+  async getTeamMembers(projectId: string) {
+    const response = await this.api.get(`/team-members/${projectId}`);
+    return response.data;
+  }
 }
 
 export default new ApiService();

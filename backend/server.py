@@ -37,6 +37,7 @@ messages_collection = db.messages
 subscriptions_collection = db.subscriptions
 expenses_collection = db.expenses
 invoices_collection = db.invoices
+video_calls_collection = db.video_calls
 
 # Create app
 app = FastAPI(title="BuildTrack API", version="1.0.0")
@@ -1374,6 +1375,145 @@ async def get_gantt_data(project_id: str, current_user: dict = Depends(get_curre
             {"date": project.get('end_date'), "name": "Project End"}
         ]
     }
+
+# ============ VIDEO CALL ENDPOINTS ============
+
+@api_router.post("/video-calls", response_model=VideoCall)
+async def create_video_call(call: VideoCallCreate, current_user: dict = Depends(get_current_user)):
+    """Create a video call (group calls restricted to admin/supervisor/pm)"""
+    user_role = current_user.get('role', 'crew')
+    
+    # Check permissions for group/conference calls
+    if call.call_type in ['group', 'conference']:
+        if user_role not in ['admin', 'supervisor', 'pm']:
+            raise HTTPException(
+                status_code=403, 
+                detail="Only admins, supervisors, and project managers can create group calls"
+            )
+    
+    # Generate meeting link (placeholder - integrate with your video provider)
+    call_dict = call.dict()
+    call_dict['id'] = str(uuid.uuid4())
+    call_dict['created_by'] = current_user['user_id']
+    call_dict['created_at'] = datetime.utcnow()
+    call_dict['status'] = 'scheduled'
+    
+    # Generate a unique meeting link (you can integrate with Daily.co, Jitsi, etc.)
+    call_dict['meeting_link'] = f"https://buildtrack.meet/{call_dict['id']}"
+    
+    await video_calls_collection.insert_one(call_dict)
+    return VideoCall(**call_dict)
+
+@api_router.get("/video-calls", response_model=List[VideoCall])
+async def get_video_calls(project_id: Optional[str] = None, status: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get video calls (filtered by project or status)"""
+    query = {}
+    
+    # Users can see calls they created or are participants in
+    query['$or'] = [
+        {'created_by': current_user['user_id']},
+        {'participants': current_user['user_id']}
+    ]
+    
+    if project_id:
+        query['project_id'] = project_id
+    if status:
+        query['status'] = status
+    
+    calls = await video_calls_collection.find(query).sort("scheduled_time", -1).to_list(1000)
+    return [VideoCall(**serialize_doc(c)) for c in calls]
+
+@api_router.get("/video-calls/{call_id}", response_model=VideoCall)
+async def get_video_call(call_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a specific video call"""
+    call = await video_calls_collection.find_one({"id": call_id})
+    if not call:
+        raise HTTPException(status_code=404, detail="Video call not found")
+    
+    # Check if user has access
+    if current_user['user_id'] not in [call['created_by']] + call.get('participants', []):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return VideoCall(**serialize_doc(call))
+
+@api_router.put("/video-calls/{call_id}/start")
+async def start_video_call(call_id: str, current_user: dict = Depends(get_current_user)):
+    """Start a video call"""
+    call = await video_calls_collection.find_one({"id": call_id})
+    if not call:
+        raise HTTPException(status_code=404, detail="Video call not found")
+    
+    result = await video_calls_collection.update_one(
+        {"id": call_id},
+        {"$set": {
+            "status": "active",
+            "started_at": datetime.utcnow()
+        }}
+    )
+    
+    return {"message": "Call started", "meeting_link": call['meeting_link']}
+
+@api_router.put("/video-calls/{call_id}/end")
+async def end_video_call(call_id: str, current_user: dict = Depends(get_current_user)):
+    """End a video call"""
+    call = await video_calls_collection.find_one({"id": call_id})
+    if not call:
+        raise HTTPException(status_code=404, detail="Video call not found")
+    
+    # Only creator or admin can end call
+    if call['created_by'] != current_user['user_id'] and current_user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail="Only call creator or admin can end the call")
+    
+    result = await video_calls_collection.update_one(
+        {"id": call_id},
+        {"$set": {
+            "status": "ended",
+            "ended_at": datetime.utcnow()
+        }}
+    )
+    
+    return {"message": "Call ended"}
+
+@api_router.delete("/video-calls/{call_id}")
+async def cancel_video_call(call_id: str, current_user: dict = Depends(get_current_user)):
+    """Cancel/delete a video call"""
+    call = await video_calls_collection.find_one({"id": call_id})
+    if not call:
+        raise HTTPException(status_code=404, detail="Video call not found")
+    
+    # Only creator or admin can cancel
+    if call['created_by'] != current_user['user_id'] and current_user.get('role') != 'admin':
+        raise HTTPException(status_code=403, detail="Only call creator or admin can cancel the call")
+    
+    await video_calls_collection.update_one(
+        {"id": call_id},
+        {"$set": {"status": "cancelled"}}
+    )
+    
+    return {"message": "Call cancelled"}
+
+@api_router.get("/team-members/{project_id}")
+async def get_team_members(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Get team members for a project (for selecting call participants)"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    team_member_ids = project.get('team_members', [])
+    team_members = []
+    
+    for member_id in team_member_ids:
+        user = await users_collection.find_one({"id": member_id})
+        if user:
+            team_members.append({
+                "id": user['id'],
+                "full_name": user.get('full_name', 'Unknown'),
+                "email": user.get('email'),
+                "role": user.get('role'),
+                "avatar_url": user.get('avatar_url')
+            })
+    
+    return team_members
 
 # ============ ROOT ENDPOINT ============
 

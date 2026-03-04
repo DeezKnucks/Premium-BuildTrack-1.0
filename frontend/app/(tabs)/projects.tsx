@@ -287,6 +287,16 @@ export default function ProjectsScreen() {
                     <MaterialIcons name="account-balance" size={18} color="#10B981" />
                     <Text style={styles.actionButtonText}>Financials</Text>
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push(`/video-calls?projectId=${project.id}`);
+                    }}
+                  >
+                    <MaterialIcons name="videocam" size={18} color="#8B5CF6" />
+                    <Text style={styles.actionButtonText}>Video</Text>
+                  </TouchableOpacity>
                 </View>
               </GlassCard>
             </AnimatedTouchable>
