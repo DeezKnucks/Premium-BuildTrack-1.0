@@ -264,6 +264,30 @@ export default function ProjectsScreen() {
                   </View>
                   <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
                 </View>
+
+                {/* Quick Actions */}
+                <View style={styles.quickActions}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push(`/gantt-chart?projectId=${project.id}`);
+                    }}
+                  >
+                    <MaterialIcons name="timeline" size={18} color="#3B82F6" />
+                    <Text style={styles.actionButtonText}>Gantt</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push(`/financials?projectId=${project.id}`);
+                    }}
+                  >
+                    <MaterialIcons name="account-balance" size={18} color="#10B981" />
+                    <Text style={styles.actionButtonText}>Financials</Text>
+                  </TouchableOpacity>
+                </View>
               </GlassCard>
             </AnimatedTouchable>
           ))
@@ -385,6 +409,30 @@ const styles = StyleSheet.create({
   projectFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dateInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dateText: { fontSize: Typography.sm },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFF',
+  },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },

@@ -346,6 +346,45 @@ class ApiService {
     const response = await this.api.put(`/safety/alerts/${alertId}/acknowledge`);
     return response.data;
   }
+
+  // Financial endpoints
+  async createExpense(data: any) {
+    const response = await this.api.post('/expenses', data);
+    return response.data;
+  }
+
+  async getProjectExpenses(projectId: string) {
+    const response = await this.api.get(`/expenses/${projectId}`);
+    return response.data;
+  }
+
+  async createInvoice(data: any) {
+    const response = await this.api.post('/invoices', data);
+    return response.data;
+  }
+
+  async getProjectInvoices(projectId: string) {
+    const response = await this.api.get(`/invoices/${projectId}`);
+    return response.data;
+  }
+
+  async getFinancialSummary(projectId: string) {
+    const response = await this.api.get(`/financial/summary/${projectId}`);
+    return response.data;
+  }
+
+  async exportFinancialData(projectId: string, format: string) {
+    const response = await this.api.get(`/financial/export/${projectId}`, {
+      params: { format },
+    });
+    return response.data;
+  }
+
+  // Gantt chart
+  async getGanttData(projectId: string) {
+    const response = await this.api.get(`/gantt/${projectId}`);
+    return response.data;
+  }
 }
 
 export default new ApiService();

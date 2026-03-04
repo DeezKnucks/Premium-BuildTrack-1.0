@@ -35,6 +35,8 @@ alerts_collection = db.alerts
 chat_rooms_collection = db.chat_rooms
 messages_collection = db.messages
 subscriptions_collection = db.subscriptions
+expenses_collection = db.expenses
+invoices_collection = db.invoices
 
 # Create app
 app = FastAPI(title="BuildTrack API", version="1.0.0")
@@ -1196,6 +1198,182 @@ async def acknowledge_safety_alert(alert_id: str, current_user: dict = Depends(g
         raise HTTPException(status_code=404, detail="Alert not found")
     
     return {"status": "acknowledged"}
+
+# ============ FINANCIAL ENDPOINTS ============
+
+@api_router.post("/expenses", response_model=Expense)
+async def create_expense(expense: ExpenseCreate, current_user: dict = Depends(get_current_user)):
+    """Create a project expense"""
+    expense_dict = expense.dict()
+    expense_dict['id'] = str(uuid.uuid4())
+    expense_dict['created_by'] = current_user['user_id']
+    expense_dict['created_at'] = datetime.utcnow()
+    
+    await expenses_collection.insert_one(expense_dict)
+    return Expense(**expense_dict)
+
+@api_router.get("/expenses/{project_id}", response_model=List[Expense])
+async def get_project_expenses(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all expenses for a project"""
+    expenses = await expenses_collection.find({"project_id": project_id}).sort("expense_date", -1).to_list(1000)
+    return [Expense(**serialize_doc(e)) for e in expenses]
+
+@api_router.delete("/expenses/{expense_id}")
+async def delete_expense(expense_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete an expense"""
+    result = await expenses_collection.delete_one({"id": expense_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return {"message": "Expense deleted successfully"}
+
+@api_router.post("/invoices", response_model=Invoice)
+async def create_invoice(invoice: InvoiceCreate, current_user: dict = Depends(get_current_user)):
+    """Create a client invoice"""
+    invoice_dict = invoice.dict()
+    invoice_dict['id'] = str(uuid.uuid4())
+    invoice_dict['created_by'] = current_user['user_id']
+    invoice_dict['created_at'] = datetime.utcnow()
+    
+    await invoices_collection.insert_one(invoice_dict)
+    return Invoice(**invoice_dict)
+
+@api_router.get("/invoices/{project_id}", response_model=List[Invoice])
+async def get_project_invoices(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all invoices for a project"""
+    invoices = await invoices_collection.find({"project_id": project_id}).sort("issue_date", -1).to_list(1000)
+    return [Invoice(**serialize_doc(i)) for i in invoices]
+
+@api_router.put("/invoices/{invoice_id}/status")
+async def update_invoice_status(invoice_id: str, status: str, current_user: dict = Depends(get_current_user)):
+    """Update invoice status"""
+    update_data = {"status": status}
+    if status == "paid":
+        update_data["paid_date"] = datetime.utcnow()
+    
+    result = await invoices_collection.update_one({"id": invoice_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return {"message": "Invoice updated successfully"}
+
+@api_router.get("/financial/summary/{project_id}")
+async def get_financial_summary(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Get financial summary for a project"""
+    expenses = await expenses_collection.find({"project_id": project_id}).to_list(1000)
+    invoices = await invoices_collection.find({"project_id": project_id}).to_list(1000)
+    
+    total_expenses = sum(e.get('amount', 0) for e in expenses)
+    total_revenue = sum(i.get('total', 0) for i in invoices if i.get('status') == 'paid')
+    outstanding = sum(i.get('total', 0) for i in invoices if i.get('status') in ['sent', 'overdue'])
+    
+    return {
+        "total_revenue": total_revenue,
+        "total_expenses": total_expenses,
+        "net_profit": total_revenue - total_expenses,
+        "outstanding_invoices": outstanding,
+        "paid_invoices": total_revenue,
+        "expense_breakdown": {
+            "labor": sum(e['amount'] for e in expenses if e.get('category') == 'labor'),
+            "materials": sum(e['amount'] for e in expenses if e.get('category') == 'materials'),
+            "equipment": sum(e['amount'] for e in expenses if e.get('category') == 'equipment'),
+            "other": sum(e['amount'] for e in expenses if e.get('category') not in ['labor', 'materials', 'equipment'])
+        }
+    }
+
+@api_router.get("/financial/export/{project_id}")
+async def export_financial_data(project_id: str, format: str = "csv", current_user: dict = Depends(get_current_user)):
+    """Export financial data in various formats (CSV, IIF, JSON)"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    expenses = await expenses_collection.find({"project_id": project_id}).to_list(1000)
+    invoices = await invoices_collection.find({"project_id": project_id}).to_list(1000)
+    
+    if format == "csv":
+        # CSV format for Excel
+        csv_data = "Type,Date,Description,Category,Amount,Status\n"
+        for exp in expenses:
+            csv_data += f"Expense,{exp['expense_date']},{exp['description']},{exp['category']},{exp['amount']},Paid\n"
+        for inv in invoices:
+            csv_data += f"Invoice,{inv['issue_date']},{inv['client_name']},Revenue,{inv['total']},{inv['status']}\n"
+        return {"format": "csv", "data": csv_data, "filename": f"{project['name']}_financials.csv"}
+    
+    elif format == "iif":
+        # IIF format for QuickBooks import
+        iif_data = "!TRNS\tTRNSID\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO\n"
+        iif_data += "!SPL\tSPLID\tTRNSTYPE\tDATE\tACCNT\tAMOUNT\tMEMO\n"
+        iif_data += "!ENDTRNS\n"
+        
+        for exp in expenses:
+            iif_data += f"TRNS\t{exp['id']}\tCHECK\t{exp['expense_date']}\tExpenses\t{exp.get('vendor_name', 'Vendor')}\t-{exp['amount']}\t{exp['description']}\n"
+            iif_data += f"SPL\t{exp['id']}\tCHECK\t{exp['expense_date']}\t{exp['category'].title()}\t{exp['amount']}\t{exp['description']}\n"
+            iif_data += "ENDTRNS\n"
+        
+        for inv in invoices:
+            iif_data += f"TRNS\t{inv['id']}\tINVOICE\t{inv['issue_date']}\tAccounts Receivable\t{inv['client_name']}\t{inv['total']}\tInvoice {inv['invoice_number']}\n"
+            iif_data += f"SPL\t{inv['id']}\tINVOICE\t{inv['issue_date']}\tIncome\t-{inv['total']}\t{inv['invoice_number']}\n"
+            iif_data += "ENDTRNS\n"
+        
+        return {"format": "iif", "data": iif_data, "filename": f"{project['name']}_qb_import.iif"}
+    
+    else:
+        # JSON format
+        return {
+            "format": "json",
+            "data": {
+                "project": serialize_doc(project),
+                "expenses": [serialize_doc(e) for e in expenses],
+                "invoices": [serialize_doc(i) for i in invoices]
+            },
+            "filename": f"{project['name']}_financials.json"
+        }
+
+# ============ GANTT CHART DATA ENDPOINT ============
+
+@api_router.get("/gantt/{project_id}")
+async def get_gantt_data(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Get Gantt chart data for a project"""
+    project = await projects_collection.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    tasks = await tasks_collection.find({"project_id": project_id}).to_list(1000)
+    
+    # Transform tasks into Gantt format
+    gantt_tasks = []
+    for task in tasks:
+        start_date = task.get('start_date')
+        end_date = task.get('end_date')
+        
+        if isinstance(start_date, str):
+            start_date = datetime.fromisoformat(start_date.replace('Z', ''))
+        if isinstance(end_date, str):
+            end_date = datetime.fromisoformat(end_date.replace('Z', ''))
+        
+        gantt_tasks.append({
+            "id": task['id'],
+            "name": task['title'],
+            "start": start_date.isoformat() if start_date else datetime.utcnow().isoformat(),
+            "end": end_date.isoformat() if end_date else (datetime.utcnow() + timedelta(days=7)).isoformat(),
+            "progress": 100 if task.get('status') == 'completed' else (50 if task.get('status') == 'in_progress' else 0),
+            "status": task.get('status', 'pending'),
+            "assignees": task.get('assigned_to', []),
+            "dependencies": task.get('dependencies', []),
+            "priority": task.get('priority', 1),
+            "description": task.get('description', '')
+        })
+    
+    return {
+        "project_id": project_id,
+        "project_name": project.get('name'),
+        "project_start": project.get('start_date'),
+        "project_end": project.get('end_date'),
+        "tasks": gantt_tasks,
+        "milestones": [
+            {"date": project.get('start_date'), "name": "Project Start"},
+            {"date": project.get('end_date'), "name": "Project End"}
+        ]
+    }
 
 # ============ ROOT ENDPOINT ============
 

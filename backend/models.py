@@ -281,3 +281,82 @@ class Subscription(BaseModel):
     is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: Optional[datetime] = None
+
+# Financial Models
+class ExpenseCategory(str, Enum):
+    LABOR = "labor"
+    MATERIALS = "materials"
+    EQUIPMENT = "equipment"
+    PERMITS = "permits"
+    SUBCONTRACTORS = "subcontractors"
+    UTILITIES = "utilities"
+    OTHER = "other"
+
+class PaymentStatus(str, Enum):
+    PENDING = "pending"
+    PAID = "paid"
+    OVERDUE = "overdue"
+    CANCELLED = "cancelled"
+
+class ExpenseBase(BaseModel):
+    project_id: str
+    category: ExpenseCategory
+    description: str
+    amount: float
+    vendor_name: Optional[str] = None
+    receipt_url: Optional[str] = None
+    expense_date: datetime
+    notes: Optional[str] = None
+
+class ExpenseCreate(ExpenseBase):
+    pass
+
+class Expense(ExpenseBase):
+    id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class InvoiceStatus(str, Enum):
+    DRAFT = "draft"
+    SENT = "sent"
+    PAID = "paid"
+    OVERDUE = "overdue"
+    CANCELLED = "cancelled"
+
+class InvoiceItemBase(BaseModel):
+    description: str
+    quantity: float
+    unit_price: float
+    total: float
+
+class InvoiceBase(BaseModel):
+    project_id: str
+    invoice_number: str
+    client_name: str
+    client_email: Optional[str] = None
+    client_address: Optional[str] = None
+    items: List[InvoiceItemBase]
+    subtotal: float
+    tax_rate: float = 0.0
+    tax_amount: float = 0.0
+    total: float
+    issue_date: datetime
+    due_date: datetime
+    status: InvoiceStatus = InvoiceStatus.DRAFT
+    notes: Optional[str] = None
+
+class InvoiceCreate(InvoiceBase):
+    pass
+
+class Invoice(InvoiceBase):
+    id: str
+    created_by: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    paid_date: Optional[datetime] = None
+
+class FinancialSummary(BaseModel):
+    total_revenue: float
+    total_expenses: float
+    net_profit: float
+    outstanding_invoices: float
+    paid_invoices: float
