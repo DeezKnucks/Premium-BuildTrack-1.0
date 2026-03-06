@@ -22,16 +22,19 @@
         "backgroundColor": "#000000"
       },
       "package": "com.buildtrack.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "CAMERA"
       ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c4b8d6e9-7a3f-4c2e-9d1b-8e5f3a2c1b0d"
+      }
     }
   }
 }
