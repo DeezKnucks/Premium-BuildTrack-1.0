@@ -1,35 +1,37 @@
 {
   "expo": {
     "name": "BuildTrack",
-    "slug": "buildtrack-premium",
+    "slug": "buildtrack",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "buildtrack",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "owner": "deezknucks",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.deezknucks.buildtrack"
+      "bundleIdentifier": "com.buildtrack.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#000000"
       },
-      "package": "com.deezknucks.buildtrack"
+      "package": "com.buildtrack.app",
+      "versionCode": 5,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
-    "plugins": [
-      "expo-router",
-      "@react-native-community/datetimepicker"
-    ],
-    "experiments": {
-      "typedRoutes": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "fd684628-0da6-2811-4018-2fb36dfca480"
-      }
+    "web": {
+      "favicon": "./assets/images/favicon.png"
     }
   }
 }
