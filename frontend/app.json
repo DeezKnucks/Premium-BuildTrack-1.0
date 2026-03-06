@@ -22,7 +22,7 @@
         "backgroundColor": "#000000"
       },
       "package": "com.buildtrack.app",
-      "versionCode": 6,
+      "versionCode": 7,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "CAMERA"
@@ -33,7 +33,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "c4b8d6e9-7a3f-4c2e-9d1b-8e5f3a2c1b0d"
+        "projectId": "cs9fIz8b-79a7-4c20-9dln-8e53a2c1b0d"
       }
     }
   }
