@@ -22,7 +22,7 @@
         "backgroundColor": "#000000"
       },
       "package": "com.buildtrack.app",
-      "versionCode": 8,
+      "versionCode": 9,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "CAMERA"
@@ -30,11 +30,6 @@
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "ec9f16bb-7aff-47d3-a2bf-f7458b67b3c9"
-      }
     },
     "sdkVersion": "54.0.0",
     "platforms": [
